@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VoltStation — Station owner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#F6F7F5;--panel:#FFF;--ink:#16221F;--muted:#6B756F;--primary:#0E4D52;--solar:#E8A33D;--solar-d:#C9892B;--line:#E4E6E1;--line-2:#EEF0EC;--shadow:0 1px 2px rgba(20,34,31,.04),0 8px 24px rgba(20,34,31,.06)}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5}
+  h1,h2,h3{font-family:"Space Grotesk",sans-serif;margin:0;letter-spacing:-.01em}
+  .num{font-variant-numeric:tabular-nums}.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+  header{border-bottom:1px solid var(--line);background:var(--panel)}
+  .topbar{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:"Space Grotesk";font-weight:700;font-size:18px}
+  .spark{width:22px;height:22px;border-radius:6px;background:radial-gradient(circle at 50% 35%,var(--primary),#0A3B3F)}
+  .tag{font-size:11px;background:#E1F0F0;color:var(--primary);font-weight:600;padding:2px 8px;border-radius:20px;margin-left:4px}
+  .who{display:flex;align-items:center;gap:14px;color:var(--muted);font-size:13.5px}.who b{color:var(--ink)}
+  .logout{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--ink)}.logout:hover{background:#F1F2EF}
+  .hero{padding:24px 0 8px}.hero h1{font-size:25px;font-weight:600}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:16px 0}
+  @media(max-width:760px){.cards{grid-template-columns:1fr 1fr}}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
+  .stat .l{font-size:12px;color:var(--muted);font-weight:500}.stat .v{font-family:"Space Grotesk";font-size:24px;font-weight:600;margin-top:4px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);margin-bottom:24px}
+  .card h2{font-size:15px;font-weight:600;padding:16px 20px;border-bottom:1px solid var(--line-2);display:flex;justify-content:space-between;align-items:center}
+  .card .body{padding:6px 20px 18px}
+  .btnp{border:none;background:var(--primary);color:#fff;border-radius:9px;padding:8px 14px;font-family:"Space Grotesk";font-weight:600;font-size:13px;cursor:pointer}.btnp:hover{background:#0A3B3F}
+  table.bk{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.bk th{text-align:left;color:var(--muted);font-weight:600;font-size:12px;padding:10px 8px;border-bottom:1px solid var(--line-2)}
+  table.bk td{padding:10px 8px;border-bottom:1px solid var(--line-2)}
+  .pill{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600}
+  .pill.booked{background:#E1F0F0;color:var(--primary)}.pill.done{background:#EFEFEC;color:var(--muted)}.pill.noshow{background:#FBE6DC;color:#B6552F}
+  .rel{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 10px;font-size:12px;cursor:pointer;color:#B6552F}.rel:hover{background:#FBE6DC}
+  .cfg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 24px;font-size:13.5px;padding-top:10px}
+  .cfg div span{color:var(--muted)}
+  .empty{color:var(--muted);text-align:center;padding:24px}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;box-shadow:var(--shadow);transition:.25s;pointer-events:none;z-index:9}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<header><div class="wrap topbar">
+  <div class="brand"><span class="spark"></span>VoltStation<span class="tag">Owner</span></div>
+  <div class="who"><span>Hi, <b id="uname"></b></span><button class="logout" id="logout">Log out</button></div>
+</div></header>
+
+<div class="wrap">
+  <div class="hero"><h1 id="stname">Station dashboard</h1></div>
+  <div class="cards">
+    <div class="stat"><div class="l">Bookings tomorrow</div><div class="v num" id="kBookings">—</div></div>
+    <div class="stat"><div class="l">Energy booked</div><div class="v num" id="kEnergy">—</div></div>
+    <div class="stat"><div class="l">Revenue (booked)</div><div class="v num" id="kRevenue">—</div></div>
+    <div class="stat"><div class="l">PV system</div><div class="v num" id="kPV">—</div></div>
+  </div>
+
+  <div class="card">
+    <h2>All bookings <button class="btnp" id="refreshFc">Rebuild tomorrow's forecast</button></h2>
+    <div class="body"><div id="bkwrap"><div class="empty">Loading…</div></div></div>
+  </div>
+
+    <div class="card">
+    <h2>Solar vs grid (booked EV demand)</h2>
+    <div class="body">
+      <div class="cards" id="svgstats" style="margin-bottom:8px"></div>
+      <div id="svgchart"></div>
+      <div style="display:flex;gap:16px;font-size:12.5px;color:var(--muted);margin-top:8px">
+        <span><span style="display:inline-block;width:12px;height:11px;background:#FBEEC9;border:1px solid #E8A33D;vertical-align:-1px"></span> surplus solar</span>
+        <span><span style="display:inline-block;width:12px;height:11px;background:#E8A33D;vertical-align:-1px"></span> EV on solar</span>
+        <span><span style="display:inline-block;width:12px;height:11px;background:#8A8F89;vertical-align:-1px"></span> EV on grid</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Station configuration</h2>
+    <div class="body"><div class="cfg" id="cfg"></div></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const token = localStorage.getItem("vs_token");
+if (!token || localStorage.getItem("vs_role") !== "admin") location.href = "login.html";
+async function authFetch(url, opts = {}) {
+  opts.headers = Object.assign({}, opts.headers, { Authorization: "Bearer " + token });
+  const r = await fetch(url, opts);
+  if (r.status === 401 || r.status === 403) { localStorage.clear(); location.href = "login.html"; throw new Error("unauth"); }
+  return r;
+}
+const g = id => document.getElementById(id);
+function toast(m){const e=g("toast");e.textContent=m;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),2600);}
+
+let station = null;
+async function loadStation(){
+  station = await (await authFetch("/api/station")).json();
+  g("stname").textContent = station.name;
+  g("uname").textContent = localStorage.getItem("vs_name") || "Owner";
+  g("kPV").textContent = station.pvKW + " kWp";
+  const t = station.tariff, b = station.bays;
+  g("cfg").innerHTML = [
+    ["Location", station.lat + ", " + station.lon],
+    ["PV size", station.pvKW + " kWp"],
+    ["Bays", b.length + " (" + b.filter(x=>x.type==="AC").length + " AC, " + b.filter(x=>x.type==="DC").length + " DC)"],
+    ["Hours", station.openHour + " – " + station.closeHour],
+    ["Slot length", station.slotMinutes + " min"],
+    ["Import AC / DC", "Rs " + t.importAC + " / " + t.importDC],
+    ["Export credit", "Rs " + t.export],
+    ["LCOI AC / DC", "Rs " + station.lcoi.AC + " / " + station.lcoi.DC],
+    ["Margin", (station.margin*100).toFixed(0) + " %"]
+  ].map(([k,v])=>`<div><span>${k}:</span> <b>${v}</b></div>`).join("");
+}
+
+async function loadBookings(){
+  const list = await (await authFetch("/api/admin/bookings")).json();
+  const active = list.filter(b => b.status === "booked");
+  g("kBookings").textContent = active.length;
+  g("kEnergy").textContent = active.reduce((s,b)=>s+b.energyKwh,0).toFixed(0) + " kWh";
+  g("kRevenue").textContent = "Rs " + active.reduce((s,b)=>s+b.totalCost,0).toFixed(0);
+  if (!list.length) { g("bkwrap").innerHTML = '<div class="empty">No bookings yet.</div>'; return; }
+  g("bkwrap").innerHTML = `<table class="bk"><tr><th>User</th><th>Bay</th><th>Date</th><th>Slots</th><th>Energy</th><th>Cost</th><th>Status</th><th></th></tr>` +
+    list.map(b=>`<tr>
+      <td>${b.userName||b.userId}</td><td>${b.bayId}</td><td>${b.date}</td>
+      <td class="num">${b.startSlot}–${b.startSlot+b.slotCount-1}</td>
+      <td class="num">${b.energyKwh} kWh</td><td class="num">Rs ${b.totalCost.toFixed(0)}</td>
+      <td><span class="pill ${b.status}">${b.status}</span></td>
+      <td>${b.status==="booked"?`<button class="rel" data-id="${b._id}">Release</button>`:""}</td>
+    </tr>`).join("") + `</table>`;
+  document.querySelectorAll(".rel").forEach(btn=>btn.onclick=async()=>{
+    await authFetch("/api/bookings/"+btn.dataset.id+"/release",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:"noshow"})});
+    toast("Slot released"); await loadBookings();});
+}
+
+g("refreshFc").onclick = async () => {
+  const d = await (await authFetch("/api/forecast/refresh",{method:"POST"})).json();
+  toast("Forecast rebuilt for " + d.date + " (" + d.source + ")");
+};
+g("logout").onclick = () => { localStorage.clear(); location.href = "login.html"; };
+
+
+async function loadSolarGrid(){
+  const d = await (await authFetch("/api/analysis")).json();
+  document.getElementById("svgstats").innerHTML = [
+    ["Solar-served", d.totals.solarKWh+" kWh"],
+    ["Grid-served", d.totals.gridKWh+" kWh"],
+    ["Solar self-consumption", d.totals.ssr+" %"]
+  ].map(x=>`<div class="stat"><div class="l">${x[0]}</div><div class="v num">${x[1]}</div></div>`).join("");
+  const rows=d.rows, W=980,H=200,pl=8,prr=8,pt=10,pb=24;
+  const maxV=Math.max(...rows.map(r=>Math.max(r.surplus,r.evDemand)),1)*1.12;
+  const n=rows.length, bw=(W-pl-prr)/n*0.6;
+  const x=i=>pl+(i+0.5)/n*(W-pl-prr), y=v=>pt+(1-v/maxV)*(H-pt-pb);
+  let sur="M "+x(0)+" "+(H-pb)+" "+rows.map((r,i)=>"L "+x(i)+" "+y(r.surplus)).join(" ")+" L "+x(n-1)+" "+(H-pb)+" Z";
+  let bars="";rows.forEach((r,i)=>{const cx=x(i);if(r.evDemand>0){const yD=y(r.evDemand),yS=y(r.solarToEV);
+    if(r.gridToEV>0)bars+=`<rect x="${cx-bw/2}" y="${yD}" width="${bw}" height="${yS-yD}" fill="#8A8F89" rx="2"/>`;
+    if(r.solarToEV>0)bars+=`<rect x="${cx-bw/2}" y="${yS}" width="${bw}" height="${(H-pb)-yS}" fill="#E8A33D" rx="2"/>`;}});
+  let ticks="";rows.forEach((r,i)=>{if(r.time.endsWith(":00"))ticks+=`<text x="${x(i)}" y="${H-7}" font-size="10" fill="#9AA29C" text-anchor="middle">${r.time.split(":")[0]}</text>`;});
+  document.getElementById("svgchart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%"><path d="${sur}" fill="#FBEEC9" stroke="#E8A33D" stroke-width="1"/>${bars}${ticks}</svg>`;
+}
+
+(async()=>{ await loadStation(); await loadBookings(); await loadSolarGrid(); })().catch(e=>console.error(e));
+</script>
+</body>
+</html>

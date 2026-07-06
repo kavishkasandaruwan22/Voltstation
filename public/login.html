@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VoltStation — Sign in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#F6F7F5;--panel:#FFF;--ink:#16221F;--muted:#6B756F;--primary:#0E4D52;--solar:#E8A33D;--solar-d:#C9892B;--line:#E4E6E1;--shadow:0 1px 2px rgba(20,34,31,.04),0 12px 32px rgba(20,34,31,.08)}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:
+    radial-gradient(1200px 500px at 50% -10%,#FBF0DD 0,var(--bg) 60%);color:var(--ink);font-family:Inter,system-ui,sans-serif}
+  .box{width:380px;max-width:92vw;background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:30px 28px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:"Space Grotesk";font-weight:700;font-size:20px;justify-content:center;margin-bottom:4px}
+  .spark{width:24px;height:24px;border-radius:7px;background:radial-gradient(circle at 50% 35%,var(--solar),var(--solar-d))}
+  .sub{text-align:center;color:var(--muted);font-size:13.5px;margin-bottom:22px}
+  .tabs{display:flex;background:#F1F2EF;border-radius:10px;padding:4px;margin-bottom:20px}
+  .tabs button{flex:1;border:none;background:none;padding:8px;border-radius:8px;font-family:inherit;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer}
+  .tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  label{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 5px;font-weight:500}
+  input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:14.5px}
+  input:focus{outline:2px solid rgba(14,77,82,.25);border-color:var(--primary)}
+  .btn{width:100%;margin-top:20px;border:none;background:var(--primary);color:#fff;font-family:"Space Grotesk";font-weight:600;font-size:15px;padding:12px;border-radius:11px;cursor:pointer}
+  .btn:hover{background:#0A3B3F}
+  .msg{margin-top:14px;font-size:13px;text-align:center;min-height:18px}
+  .msg.err{color:#B6552F}.msg.ok{color:#0F6E56}
+  .hint{margin-top:18px;font-size:12px;color:var(--muted);text-align:center;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="brand"><span class="spark"></span>VoltStation</div>
+  <div class="sub">Solar-aware community EV charging</div>
+  <div class="tabs"><button id="tLogin" class="on">Sign in</button><button id="tReg">Register</button></div>
+
+<div id="nameField" style="display:none"><label>Full name</label><input id="name" placeholder="Your name"></div>
+  <div id="vehicleFields" style="display:none">
+    <label>Vehicle Brand</label><input id="vehicleBrand" placeholder="e.g., BYD, Tesla, Nissan"><label>Vehicle Model</label><input id="vehicleModel" placeholder="e.g., Qin, Model 3, Leaf"><label>Battery Capacity (kWh)</label><input id="batteryCapacity" type="number" placeholder="e.g., 40, 50" min="1">
+  </div>
+  <label>Email</label><input id="email" type="email" placeholder="you@email.com">
+  <label>Password</label><input id="password" type="password" placeholder="••••••••">
+  <button class="btn" id="go">Sign in</button>
+  <div class="msg" id="msg"></div>
+  <div class="hint" id="hint">Vehicle owners: register a new account.<br>Station owner: use the seeded admin login.</div>
+</div>
+
+<script>
+let mode = "login";
+const g = id => document.getElementById(id);
+function setMode(m){
+  mode = m;
+  g("tLogin").classList.toggle("on", m==="login");
+  g("tReg").classList.toggle("on", m==="register");
+  g("nameField").style.display = m==="register" ? "block" : "none";
+  g("vehicleFields").style.display = m==="register" ? "block" : "none";
+  g("go").textContent = m==="login" ? "Sign in" : "Create account";
+  g("msg").textContent = "";
+}
+g("tLogin").onclick = () => setMode("login");
+g("tReg").onclick = () => setMode("register");
+
+async function submit(){
+  const msg = g("msg"); msg.className = "msg"; msg.textContent = "…";
+  const body = { email: g("email").value.trim(), password: g("password").value };
+  if (mode==="register") {
+    body.name = g("name").value.trim();
+    body.vehicleBrand = g("vehicleBrand").value.trim();
+    body.vehicleModel = g("vehicleModel").value.trim();
+    body.batteryCapacity = g("batteryCapacity").value.trim();
+    if (!body.name || !body.vehicleBrand || !body.vehicleModel || !body.batteryCapacity) {
+      msg.className="msg err";
+      msg.textContent = "All fields are required";
+      return;
+    }
+  }
+  const url = mode==="login" ? "/api/auth/login" : "/api/auth/register";
+  try{
+    const r = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
+    const d = await r.json();
+    if(!r.ok){ msg.className="msg err"; msg.textContent = d.error || "failed"; return; }
+    localStorage.setItem("vs_token", d.token);
+    localStorage.setItem("vs_role", d.user.role);
+    localStorage.setItem("vs_name", d.user.name);
+    localStorage.setItem("vs_vehicleBrand", d.user.vehicleBrand || "");
+    localStorage.setItem("vs_vehicleModel", d.user.vehicleModel || "");
+    localStorage.setItem("vs_batteryCapacity", d.user.batteryCapacity || "");
+    location.href = d.user.role === "admin" ? "admin.html" : "index.html";
+  }catch(e){ msg.className="msg err"; msg.textContent = "server not reachable"; }
+}
+g("go").onclick = submit;
+g("password").addEventListener("keydown", e => { if(e.key==="Enter") submit(); });
+
+// already logged in? skip to the right page
+const t = localStorage.getItem("vs_token");
+if (t) location.href = localStorage.getItem("vs_role")==="admin" ? "admin.html" : "index.html";
+</script>
+</body>
+</html>

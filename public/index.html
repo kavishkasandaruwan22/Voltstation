@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VoltStation — Book your charge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#F6F7F5;--panel:#FFF;--ink:#16221F;--muted:#6B756F;--primary:#0E4D52;--solar:#E8A33D;--solar-d:#C9892B;--line:#E4E6E1;--line-2:#EEF0EC;--shadow:0 1px 2px rgba(20,34,31,.04),0 8px 24px rgba(20,34,31,.06)}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5}
+  h1,h2,h3{font-family:"Space Grotesk",sans-serif;margin:0;letter-spacing:-.01em}
+  .num{font-variant-numeric:tabular-nums}.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+  header{border-bottom:1px solid var(--line);background:var(--panel)}
+  .topbar{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:"Space Grotesk";font-weight:700;font-size:18px}
+  .spark{width:22px;height:22px;border-radius:6px;background:radial-gradient(circle at 50% 35%,var(--solar),var(--solar-d))}
+  .who{display:flex;align-items:center;gap:14px;color:var(--muted);font-size:13.5px}
+  .who b{color:var(--ink)}.logout{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--ink)}
+  .logout:hover{background:#F1F2EF}
+  .bellwrap{position:relative;display:inline-flex;align-items:center}
+  .bell{background:#fff;border:1px solid var(--line);border-radius:999px;width:36px;height:36px;display:grid;place-items:center;cursor:pointer;position:relative}
+  .bell .dot{position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:#C9892B;display:none}
+  .bell .dot.show{display:block}
+  .notifMenu{position:absolute;right:0;top:46px;width:320px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);display:none;z-index:10;max-height:360px;overflow:auto}
+  .notifMenu.open{display:block}
+  .notifItem{padding:10px 12px;border-bottom:1px solid var(--line-2);cursor:pointer}
+  .notifItem.unread{background:#F8F8F1}
+  .notifItem:last-child{border-bottom:none}
+  .notifTitle{font-size:13px;font-weight:700;color:#0E4D52;margin-bottom:4px}
+  .notifItem ul{padding-left:16px;margin:6px 0 0;font-size:12.5px;color:var(--muted)}
+  .notifEmpty{padding:16px 12px;color:var(--muted);font-size:13px;text-align:center}
+  .cell.highlight{outline:2.5px solid #E8A33D;outline-offset:1px;box-shadow:0 0 0 2px rgba(232,163,61,.28)}
+  .hero{padding:26px 0 20px}.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--solar-d);font-weight:600}
+  .hero h1{font-size:27px;font-weight:600;margin:8px 0 6px}.hero p{color:var(--muted);max-width:560px;margin:0}
+  .curveCard{margin-top:16px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 20px 8px;box-shadow:var(--shadow)}
+  .curveCard h3{font-size:14px;font-weight:600;margin-bottom:6px}
+  .grid2{display:grid;grid-template-columns:1fr 360px;gap:24px;padding:8px 0 60px;align-items:start}
+  @media(max-width:920px){.grid2{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+  .card h2{font-size:15px;font-weight:600;padding:16px 20px;border-bottom:1px solid var(--line-2)}
+  .card .body{padding:18px 20px}.step{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--solar-d);font-weight:600;margin-right:8px}
+  .fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px;font-weight:500}
+  .field input,.field select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-family:inherit;font-size:14px;background:#fff}
+  .need{margin-top:14px;display:flex;gap:18px;font-size:13.5px;color:var(--muted);flex-wrap:wrap}.need b{color:var(--ink)}
+  .gridhint{font-size:12.5px;color:var(--muted);margin:2px 0 12px}
+  .scwrap{overflow-x:auto;padding-bottom:4px}
+  table.sched{border-collapse:separate;border-spacing:3px;min-width:640px}
+  table.sched th{font-size:10.5px;color:var(--muted);font-weight:500;padding:0 0 4px;text-align:center;width:30px}
+  table.sched td.bay{font-size:12px;font-weight:600;text-align:left;padding-right:8px;white-space:nowrap}
+  .cell{width:30px;height:30px;border-radius:6px;cursor:pointer;border:1px solid rgba(0,0,0,.04);transition:transform .06s}
+  .cell:hover{transform:scale(1.12);z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+  .cell.booked{background:repeating-linear-gradient(45deg,#E7E9E4,#E7E9E4 4px,#DDE0DA 4px,#DDE0DA 8px)!important;cursor:not-allowed}
+  .cell.booked:hover,.cell.disabled:hover{transform:none;box-shadow:none}
+  .cell.disabled{opacity:.32;cursor:not-allowed}.cell.sel{outline:2.5px solid var(--primary);outline-offset:1px}
+  .cell.freed{outline:2.5px solid #22a06b;outline-offset:1px;animation:pulse 1.2s ease-in-out 3}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(34,160,107,.5)}50%{box-shadow:0 0 0 5px rgba(34,160,107,0)}}
+  .sumrow{display:flex;justify-content:space-between;padding:7px 0;font-size:13.5px;border-bottom:1px dashed var(--line)}
+  .sumrow:last-of-type{border-bottom:none}.sumrow .k{color:var(--muted)}.sumrow .v{font-weight:600}
+  .total{margin-top:14px;background:var(--primary);color:#fff;border-radius:12px;padding:14px 16px}
+  .total .t{font-size:12px;opacity:.8}.total .a{font-family:"Space Grotesk";font-size:26px;font-weight:600;margin-top:2px}
+  .total .save{font-size:12.5px;margin-top:4px;color:#CDE9D8}
+  .btn{margin-top:14px;width:100%;border:none;background:var(--solar);color:#3A2A06;font-family:"Space Grotesk";font-weight:600;font-size:15px;padding:12px;border-radius:11px;cursor:pointer}
+  .btn:hover{background:var(--solar-d);color:#fff}
+  .empty{color:var(--muted);font-size:13.5px;text-align:center;padding:20px 8px}
+  .mybk{font-size:13px;padding:10px 0;border-bottom:1px solid var(--line-2);display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .mybk:last-child{border-bottom:none}.mybk .cancel{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 9px;font-size:12px;cursor:pointer;color:#B6552F}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;box-shadow:var(--shadow);transition:.25s;pointer-events:none;z-index:9}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<header><div class="wrap topbar">
+  <div class="brand"><span class="spark"></span>VoltStation</div>
+  <div class="who"><span><b id="stname">…</b> · <span id="tdate"></span></span><a href="details.html" style="color:var(--primary);font-weight:600;text-decoration:none">How pricing works ›</a><span>Hi, <b id="uname"></b> <span id="cxbadge" style="font-size:11px;color:#B6552F"></span></span><div class="bellwrap"><button class="bell" id="bellBtn" aria-label="Notifications"><span id="bellDot" class="dot"></span>🔔</button><div class="notifMenu" id="notifMenu"></div></div><button class="logout" id="logout">Log out</button></div>
+</div></header>
+<div id="freedBanner" style="display:none;background:#E6F5EC;border-bottom:1px solid #B7E0C6;color:#0F6E56;font-size:13.5px;text-align:center;padding:9px"></div>
+
+<div class="wrap hero">
+  <div class="eyebrow">Tomorrow's prices</div>
+  <h1>Charge cheaper when the sun is out</h1>
+  <p>Prices follow this station's solar surplus. Pick a slot — the cost is shown before you book, and prices rise as a slot fills.</p>
+  <p style="margin-top:8px"><a href="details.html" style="color:#0E4D52;font-weight:600;text-decoration:none">How is my price calculated? See solar vs grid →</a></p>
+  <div class="curveCard"><h3>Hourly charging price (Rs / kWh) — AC, best case</h3><div id="curve"></div></div>
+  <div class="curveCard" style="margin-top:14px"><h3>Solar forecast vs building load (kW)</h3><div id="profiles"></div></div>
+</div>
+
+<div class="wrap grid2">
+  <div style="display:flex;flex-direction:column;gap:24px">
+    <div class="card"><h2><span class="step">Step 1</span>Your vehicle</h2><div class="body">
+      <div class="fields">
+        <div class="field"><label>Battery (kWh)</label><input id="bat" type="number" value="40"></div>
+        <div class="field"><label>Charger</label><select id="bay"></select></div>
+        <div class="field"><label>Current %</label><input id="soc0" type="number" value="30"></div>
+        <div class="field"><label>Target %</label><input id="socT" type="number" value="80"></div>
+      </div>
+      <div class="need"><span>Energy: <b id="needE" class="num">—</b></span><span>Time: <b id="needD" class="num">—</b></span><span>Slots: <b id="needN" class="num">—</b></span></div>
+    </div></div>
+    <div class="card"><h2><span class="step">Step 2</span>Pick your start slot</h2><div class="body">
+      <div class="gridhint">Cells shaded by price (amber = cheap solar, grey = flat). Prices rise as a slot fills. Striped = booked.</div>
+      <div class="scwrap"><div id="sched">loading…</div></div>
+    </div></div>
+    <div class="card"><h2>My bookings</h2><div class="body"><div id="mybookings"><div class="empty">No bookings yet.</div></div></div></div>
+  </div>
+  <div class="card" style="position:sticky;top:16px"><h2><span class="step">Step 3</span>Your booking</h2><div class="body">
+    <div class="empty" id="empty">Pick a start slot to see the cost.</div>
+    <div id="sumcontent" style="display:none">
+      <div class="sumrow"><span class="k">Charger</span><span class="v" id="s_bay">—</span></div>
+      <div class="sumrow"><span class="k">Time</span><span class="v" id="s_time">—</span></div>
+      <div class="sumrow"><span class="k">Energy</span><span class="v num" id="s_energy">—</span></div>
+      <div class="total"><div class="t">ESTIMATED TOTAL</div><div class="a num" id="s_total">Rs 0</div><div class="save num" id="s_save"></div></div>
+      <button class="btn" id="confirm">Confirm booking</button>
+    </div>
+  </div></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ── auth guard ──
+const token = localStorage.getItem("vs_token");
+if (!token || localStorage.getItem("vs_role") === "admin") {
+  // admins go to their dashboard; logged-out users go to login
+  location.href = localStorage.getItem("vs_role") === "admin" ? "admin.html" : "login.html";
+}
+async function authFetch(url, opts = {}) {
+  opts.headers = Object.assign({}, opts.headers, { Authorization: "Bearer " + token });
+  const r = await fetch(url, opts);
+  if (r.status === 401) { localStorage.clear(); location.href = "login.html"; throw new Error("unauth"); }
+  return r;
+}
+
+let station = null, prices = null, avail = null, sel = null;
+let notifications = [];
+let viewDate = new URLSearchParams(location.search).get("date") || new Date(Date.now()+864e5).toISOString().slice(0,10);
+let highlightedSlot = null;
+const qp = new URLSearchParams(location.search);
+const highlightBay = qp.get("bay") || qp.get("bayId");
+const highlightSlot = qp.get("slot");
+if (highlightBay && highlightSlot !== null) highlightedSlot = { bayId: highlightBay, slot: +highlightSlot };
+const g = id => document.getElementById(id);
+function toast(m){const e=g("toast");e.textContent=m;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),2600);}
+function bayPower(type){const b=station.bays.find(x=>x.type===type);return b?b.power:(type==="DC"?30:7.4);}
+function vehicle(){const B=+g("bat").value,s0=+g("soc0").value,sT=+g("socT").value,type=g("bay").value;
+  const E=Math.max(0,(sT-s0)/100*B),perSlot=bayPower(type)*station.eta*(station.slotMinutes/60),n=Math.max(1,Math.ceil(E/perSlot));
+  return {type,E,perSlot,n};}
+function refreshNeed(){const v=vehicle();g("needE").textContent=v.E.toFixed(1)+" kWh";g("needD").textContent=(v.E/(bayPower(v.type)*station.eta)).toFixed(1)+" h";g("needN").textContent=v.n;}
+function colorFor(price,type){const lo=avail.floor[type],hi=avail.flat[type];const x=Math.max(0,Math.min(1,(price-lo)/(hi-lo)));const a=[232,163,61],b=[201,201,196];return `rgb(${a.map((c,i)=>Math.round(c+(b[i]-c)*x)).join(",")})`;}
+
+function drawCurve(){const W=920,H=140,pl=8,pt=10,pb=22;const ps=prices.slots.map(s=>s.priceAC);
+  const lo=Math.min(...ps),hi=Math.max(...ps),sp=(hi-lo)||1;const x=i=>pl+(i/(ps.length-1))*(W-2*pl);const y=p=>pt+(1-(p-lo)/sp)*(H-pt-pb);
+  let line=ps.map((p,i)=>(i?"L":"M")+x(i)+" "+y(p)).join(" ");
+  let w0=-1,w1=-1;prices.slots.forEach((s,i)=>{if(s.surplus>0.1){if(w0<0)w0=i;w1=i;}});
+  let ticks="";prices.slots.forEach((s,i)=>{if(s.time.endsWith(":00"))ticks+=`<text x="${x(i)}" y="${H-6}" font-size="10" fill="#9AA29C" text-anchor="middle">${s.time.split(":")[0]}</text>`;});
+  const win=w0>=0?`<rect x="${x(w0)}" y="${pt}" width="${x(w1)-x(w0)}" height="${H-pt-pb}" fill="#FBF0D6"/>`:"";
+  g("curve").innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%">${win}<path d="${line}" fill="none" stroke="#0E4D52" stroke-width="2.5" stroke-linejoin="round"/>${ticks}</svg>`;}
+
+function drawProfiles(){
+  const W=920,H=150,pl=8,pt=10,pb=22;
+  const pv=prices.slots.map(s=>s.pv), load=prices.slots.map(s=>s.load), sur=prices.slots.map(s=>s.surplus);
+  const maxV=(Math.max(...pv,...load)*1.12)||1;
+  const x=i=>pl+(i/(pv.length-1))*(W-2*pl);
+  const y=v=>pt+(1-v/maxV)*(H-pt-pb);
+  const line=arr=>arr.map((v,i)=>(i?"L":"M")+x(i)+" "+y(v)).join(" ");
+  const surArea="M "+x(0)+" "+(H-pb)+" "+sur.map((v,i)=>"L "+x(i)+" "+y(v)).join(" ")+" L "+x(sur.length-1)+" "+(H-pb)+" Z";
+  let ticks="";prices.slots.forEach((s,i)=>{if(s.time.endsWith(":00"))ticks+=`<text x="${x(i)}" y="${H-6}" font-size="10" fill="#9AA29C" text-anchor="middle">${s.time.split(":")[0]}</text>`;});
+  g("profiles").innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%">
+    <path d="${surArea}" fill="#FBE6C0"/>
+    <path d="${line(pv)}" fill="none" stroke="#E8A33D" stroke-width="2.6" stroke-linejoin="round"/>
+    <path d="${line(load)}" fill="none" stroke="#5F5E5A" stroke-width="2" stroke-dasharray="5 4" stroke-linejoin="round"/>
+    ${ticks}</svg>
+    <div style="display:flex;gap:16px;font-size:12px;color:#6B756F;margin:6px 0 2px">
+      <span><i style="display:inline-block;width:12px;height:3px;background:#E8A33D;vertical-align:middle"></i> solar forecast</span>
+      <span><i style="display:inline-block;width:12px;height:3px;background:#5F5E5A;vertical-align:middle"></i> building load</span>
+      <span><i style="display:inline-block;width:11px;height:11px;background:#FBEEC9;border:1px solid #E8A33D;vertical-align:middle"></i> surplus (for EVs)</span>
+    </div>`;
+}
+
+
+function drawGrid(){const v=vehicle();let html='<table class="sched"><tr><th class="bay"></th>';
+  avail.slotTimes.forEach(t=>html+=`<th>${t.endsWith(":00")?t.split(":")[0]:""}</th>`);html+='</tr>';
+  avail.grid.forEach((row,bi)=>{html+=`<tr><td class="bay">${row.bayId}</td>`;
+    row.cells.forEach((c,si)=>{const typeOk=row.type===v.type;let cls="cell",style=`background:${colorFor(c.price,row.type)}`;
+      if(c.booked){cls+=" booked";} else if(!typeOk){cls+=" disabled";}
+      if(sel&&sel.bi===bi&&si>=sel.start&&si<sel.start+sel.n)cls+=" sel";
+      if(!c.booked&&freedKeys.has(bi+"-"+si))cls+=" freed";
+      if(highlightedSlot&&highlightedSlot.bayId===row.bayId&&highlightedSlot.slot===si)cls+=" highlight";
+      html+=`<td><div class="${cls}" style="${style}" data-bi="${bi}" data-si="${si}" title="${row.bayId} · ${c.time} · Rs ${c.price.toFixed(0)}${c.booked?' · booked':''}"></div></td>`;});
+    html+='</tr>';});
+  g("sched").innerHTML=html+'</table>';
+  document.querySelectorAll(".cell").forEach(c=>{if(c.classList.contains("booked")||c.classList.contains("disabled"))return;c.onclick=()=>pick(+c.dataset.bi,+c.dataset.si);});}  if(highlightedSlot){ setTimeout(()=>document.querySelector('.cell.highlight')?.scrollIntoView({block:'nearest',behavior:'smooth'}),50); }
+function pick(bi,start){const v=vehicle(),row=avail.grid[bi];if(row.type!==v.type)return;
+  if(start+v.n>row.cells.length){toast("Not enough time before closing.");return;}
+  for(let i=start;i<start+v.n;i++)if(row.cells[i].booked){toast("Overlaps a booked slot.");return;}
+  sel={bi,start,n:v.n};drawGrid();summary();}
+
+function summary(){const v=vehicle(),row=avail.grid[sel.bi];g("empty").style.display="none";g("sumcontent").style.display="block";
+  g("s_bay").textContent=row.bayId;g("s_time").textContent=row.cells[sel.start].time+" – "+timePlus(sel.start+sel.n);
+  let rem=v.E,total=0;for(let k=0;k<sel.n;k++){const c=row.cells[sel.start+k];const e=Math.min(v.perSlot,rem);rem-=e;total+=e*c.price;}
+  g("s_energy").textContent=v.E.toFixed(1)+" kWh";g("s_total").textContent="Rs "+total.toFixed(0);
+  const flat=v.E*avail.flat[v.type],save=flat-total;g("s_save").textContent=save>1?`Saves Rs ${save.toFixed(0)} vs flat`:"Flat-rate slot.";}
+function timePlus(idx){return idx<avail.slotTimes.length?avail.slotTimes[idx]:"close";}
+
+async function confirmBooking(){if(!sel)return;const row=avail.grid[sel.bi];
+  const r=await authFetch("/api/bookings",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({bayId:row.bayId,startSlot:sel.start,batteryKwh:+g("bat").value,soc0:+g("soc0").value,socT:+g("socT").value})});
+  const d=await r.json();
+  if(!r.ok){toast(d.error||"booking failed");return;}
+  toast(`Booked ${row.bayId} · Rs ${d.booking.totalCost.toFixed(0)}`);sel=null;
+  g("sumcontent").style.display="none";g("empty").style.display="block";g("empty").textContent="Booking confirmed. Pick another slot.";
+  await loadAvail();await loadMine();}
+
+async function loadMine(){const r=await authFetch("/api/bookings");const list=await r.json();
+  g("mybookings").innerHTML = list.length? list.map(b=>
+    `<div class="mybk"><span>${b.bayId} · ${b.date} · ${b.energyKwh} kWh · <b>Rs ${b.totalCost.toFixed(0)}</b> <span style="color:#6B756F">(${b.status})</span></span>
+     <button class="cancel" data-id="${b._id}">Cancel</button></div>`).join("")
+    : '<div class="empty">No bookings yet.</div>';
+  document.querySelectorAll(".cancel").forEach(btn=>btn.onclick=async()=>{
+    await authFetch("/api/bookings/"+btn.dataset.id+"/release",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:"cancelled"})});
+    toast("Booking cancelled — slot freed");await loadAvail();await loadMine();await loadProfile();});}
+
+async function loadAvail(){avail=await (await authFetch("/api/availability?date="+encodeURIComponent(viewDate))).json();drawGrid();}
+let freedKeys=new Set();
+async function loadProfile(){
+  try{ const me=await (await authFetch("/api/auth/me")).json();
+    const c=me.user.cancellations||0;
+    g("cxbadge").textContent = c? "· "+c+" cancellation"+(c>1?"s":"") : "";
+  }catch(e){}
+}
+function bannerFreed(list){
+  const b=g("freedBanner");
+  if(!list.length){b.style.display="none";return;}
+  const one=list[0];
+  b.textContent = "A slot just opened — "+one.bayId+" at "+one.time+(list.length>1?" (+"+(list.length-1)+" more)":"")+". Grab it below.";
+  b.style.display="block"; setTimeout(()=>{b.style.display="none";},8000);
+}
+function renderNotifications(){
+  const menu=g("notifMenu");
+  const unread=notifications.filter(n=>n.status==="active" || n.status==="available").length;
+  g("bellDot").classList.toggle("show", unread>0);
+  if(!notifications.length){menu.innerHTML='<div class="notifEmpty">No notifications yet.</div>';return;}
+  menu.innerHTML=notifications.map(n=>`<div class="notifItem ${n.status==="active"||n.status==="available"?"unread":""}" data-id="${n._id}" data-link="${n.link||""}">
+    <div class="notifTitle">${n.message||"Booking Slot Available"}</div>
+    <ul>
+      <li><b>Station:</b> ${n.stationName||"Charging Station"}</li>
+      ${n.location?`<li><b>Location:</b> ${n.location}</li>`:''}
+      <li><b>Date:</b> ${n.date||"—"}</li>
+      <li><b>Time:</b> ${n.startTime||"—"} – ${n.endTime||"—"}</li>
+      <li><b>Status:</b> ${n.status==="available"||n.status==="active"?"Now Available":""+n.status}</li>
+      ${n.bookingId?`<li><b>Booking ID:</b> ${String(n.bookingId).slice(-6)}</li>`:''}
+    </ul>
+  </div>`).join("");
+  menu.querySelectorAll(".notifItem").forEach(item=>item.onclick=async()=>{
+    const id=item.dataset.id; const link=item.dataset.link;
+    try{ await authFetch("/api/notifications/"+id+"/read", {method:"POST"}); }catch(e){}
+    if(link){ window.location.href = link; }
+    await loadNotifications();
+  });
+}
+async function loadNotifications(){
+  try{ const res=await authFetch("/api/notifications"); notifications=await res.json(); renderNotifications(); }
+  catch(e){}
+}
+async function pollFreed(){
+  try{
+    const prev = avail;
+    const fresh = await (await authFetch("/api/availability")).json();
+    const opened=[];
+    if(prev){
+      fresh.grid.forEach((row,bi)=>row.cells.forEach((c,si)=>{
+        const was = prev.grid[bi] && prev.grid[bi].cells[si];
+        if(was && was.booked && !c.booked){ opened.push({bayId:row.bayId,time:c.time}); freedKeys.add(bi+"-"+si); }
+      }));
+    }
+    avail=fresh; drawGrid();
+    if(opened.length) bannerFreed(opened);
+  }catch(e){}
+}
+async function loadAll(){
+  station=await (await authFetch("/api/station")).json();
+  g("stname").textContent=station.name;
+  const vehicleBrand=localStorage.getItem("vs_vehicleBrand")||"User";
+  g("uname").textContent=vehicleBrand;
+  g("tdate").textContent=new Date(Date.now()+864e5).toLocaleDateString(undefined,{weekday:"long",month:"short",day:"numeric"});
+  const types=[...new Set(station.bays.map(b=>b.type))];
+  g("bay").innerHTML=types.map(t=>`<option value="${t}">${t} · ${bayPower(t)} kW</option>`).join("");
+  prices=await (await authFetch("/api/prices?date="+encodeURIComponent(viewDate))).json();drawCurve();drawProfiles();
+  await loadAvail();refreshNeed();await loadMine();await loadProfile();await loadNotifications();
+  setInterval(pollFreed,15000);}
+
+["bat","soc0","socT","bay"].forEach(id=>g(id).addEventListener("input",()=>{sel=null;g("sumcontent").style.display="none";g("empty").style.display="block";g("empty").textContent="Pick a start slot to see the cost.";refreshNeed();drawGrid();}));
+g("confirm").onclick=confirmBooking;
+g("bellBtn").onclick=async()=>{ g("notifMenu").classList.toggle("open"); await loadNotifications(); };
+document.addEventListener("click", e=>{ if(!e.target.closest(".bellwrap")) g("notifMenu").classList.remove("open"); });
+g("logout").onclick=()=>{
+  if(confirm("Are you sure you want to log out?")){
+    localStorage.clear();
+    location.href="login.html";
+  }
+};
+loadAll().catch(e=>{g("sched").textContent="Could not load — is the server running?";console.error(e);});
+
+const socket = io("http://localhost:4000", { auth: { token } });
+socket.on("notification:new", n=>{ notifications = [n, ...notifications.filter(x=>x._id!==n._id)]; renderNotifications(); });
+socket.on("notification:expired", data=>{ notifications = notifications.map(n=>n._id===data.id?{...n,status:"expired"}:n); renderNotifications(); });
+</script>
+</body>
+</html>
