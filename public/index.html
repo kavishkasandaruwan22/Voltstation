@@ -63,6 +63,8 @@
   .total .save{font-size:12.5px;margin-top:4px;color:#CDE9D8}
   .btn{margin-top:14px;width:100%;border:none;background:var(--solar);color:#3A2A06;font-family:"Space Grotesk";font-weight:600;font-size:15px;padding:12px;border-radius:11px;cursor:pointer}
   .btn:hover{background:var(--solar-d);color:#fff}
+  .btn:disabled{background:#D7D9D4;color:#6B756F;cursor:not-allowed}
+  .btn:disabled:hover{background:#D7D9D4;color:#6B756F}
   .empty{color:var(--muted);font-size:13.5px;text-align:center;padding:20px 8px}
   .mybk{font-size:13px;padding:10px 0;border-bottom:1px solid var(--line-2);display:flex;justify-content:space-between;align-items:center;gap:8px}
   .mybk:last-child{border-bottom:none}.mybk .cancel{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 9px;font-size:12px;cursor:pointer;color:#B6552F}
@@ -131,7 +133,7 @@ async function authFetch(url, opts = {}) {
   return r;
 }
 
-let station = null, prices = null, avail = null, sel = null;
+let station = null, prices = null, avail = null, sel = null, activeBooking = null;
 let notifications = [];
 let viewDate = new URLSearchParams(location.search).get("date") || new Date(Date.now()+864e5).toISOString().slice(0,10);
 let highlightedSlot = null;
@@ -140,7 +142,23 @@ const highlightBay = qp.get("bay") || qp.get("bayId");
 const highlightSlot = qp.get("slot");
 if (highlightBay && highlightSlot !== null) highlightedSlot = { bayId: highlightBay, slot: +highlightSlot };
 const g = id => document.getElementById(id);
+const ACTIVE_BOOKING_STATUSES = ["booked", "charging"];
+const ACTIVE_BOOKING_MESSAGE = "You already have an active booking. Please cancel or complete your existing booking before making another reservation.";
 function toast(m){const e=g("toast");e.textContent=m;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),2600);}
+function isActiveBooking(b){return ACTIVE_BOOKING_STATUSES.includes(b.status);}
+function setBookingBlockedState(){
+  const confirm = g("confirm");
+  if(!confirm) return;
+  confirm.disabled = !!activeBooking;
+  if(activeBooking){
+    sel=null;
+    g("sumcontent").style.display="none";
+    g("empty").style.display="block";
+    g("empty").textContent=ACTIVE_BOOKING_MESSAGE;
+  }else if(!sel){
+    g("empty").textContent="Pick a start slot to see the cost.";
+  }
+}
 function bayPower(type){const b=station.bays.find(x=>x.type===type);return b?b.power:(type==="DC"?30:7.4);}
 function vehicle(){const B=+g("bat").value,s0=+g("soc0").value,sT=+g("socT").value,type=g("bay").value;
   const E=Math.max(0,(sT-s0)/100*B),perSlot=bayPower(type)*station.eta*(station.slotMinutes/60),n=Math.max(1,Math.ceil(E/perSlot));
@@ -182,7 +200,7 @@ function drawGrid(){const v=vehicle();let html='<table class="sched"><tr><th cla
   avail.slotTimes.forEach(t=>html+=`<th>${t.endsWith(":00")?t.split(":")[0]:""}</th>`);html+='</tr>';
   avail.grid.forEach((row,bi)=>{html+=`<tr><td class="bay">${row.bayId}</td>`;
     row.cells.forEach((c,si)=>{const typeOk=row.type===v.type;let cls="cell",style=`background:${colorFor(c.price,row.type)}`;
-      if(c.booked){cls+=" booked";} else if(!typeOk){cls+=" disabled";}
+      if(c.booked){cls+=" booked";} else if(activeBooking || !typeOk){cls+=" disabled";}
       if(sel&&sel.bi===bi&&si>=sel.start&&si<sel.start+sel.n)cls+=" sel";
       if(!c.booked&&freedKeys.has(bi+"-"+si))cls+=" freed";
       if(highlightedSlot&&highlightedSlot.bayId===row.bayId&&highlightedSlot.slot===si)cls+=" highlight";
@@ -190,7 +208,7 @@ function drawGrid(){const v=vehicle();let html='<table class="sched"><tr><th cla
     html+='</tr>';});
   g("sched").innerHTML=html+'</table>';
   document.querySelectorAll(".cell").forEach(c=>{if(c.classList.contains("booked")||c.classList.contains("disabled"))return;c.onclick=()=>pick(+c.dataset.bi,+c.dataset.si);});}  if(highlightedSlot){ setTimeout(()=>document.querySelector('.cell.highlight')?.scrollIntoView({block:'nearest',behavior:'smooth'}),50); }
-function pick(bi,start){const v=vehicle(),row=avail.grid[bi];if(row.type!==v.type)return;
+function pick(bi,start){if(activeBooking){toast(ACTIVE_BOOKING_MESSAGE);setBookingBlockedState();return;}const v=vehicle(),row=avail.grid[bi];if(row.type!==v.type)return;
   if(start+v.n>row.cells.length){toast("Not enough time before closing.");return;}
   for(let i=start;i<start+v.n;i++)if(row.cells[i].booked){toast("Overlaps a booked slot.");return;}
   sel={bi,start,n:v.n};drawGrid();summary();}
@@ -202,7 +220,7 @@ function summary(){const v=vehicle(),row=avail.grid[sel.bi];g("empty").style.dis
   const flat=v.E*avail.flat[v.type],save=flat-total;g("s_save").textContent=save>1?`Saves Rs ${save.toFixed(0)} vs flat`:"Flat-rate slot.";}
 function timePlus(idx){return idx<avail.slotTimes.length?avail.slotTimes[idx]:"close";}
 
-async function confirmBooking(){if(!sel)return;const row=avail.grid[sel.bi];
+async function confirmBooking(){if(activeBooking){toast(ACTIVE_BOOKING_MESSAGE);setBookingBlockedState();return;}if(!sel)return;const row=avail.grid[sel.bi];
   const r=await authFetch("/api/bookings",{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({bayId:row.bayId,startSlot:sel.start,batteryKwh:+g("bat").value,soc0:+g("soc0").value,socT:+g("socT").value})});
   const d=await r.json();
@@ -212,10 +230,13 @@ async function confirmBooking(){if(!sel)return;const row=avail.grid[sel.bi];
   await loadAvail();await loadMine();}
 
 async function loadMine(){const r=await authFetch("/api/bookings");const list=await r.json();
+  activeBooking = list.find(isActiveBooking) || null;
   g("mybookings").innerHTML = list.length? list.map(b=>
     `<div class="mybk"><span>${b.bayId} · ${b.date} · ${b.energyKwh} kWh · <b>Rs ${b.totalCost.toFixed(0)}</b> <span style="color:#6B756F">(${b.status})</span></span>
-     <button class="cancel" data-id="${b._id}">Cancel</button></div>`).join("")
+     ${isActiveBooking(b)?`<button class="cancel" data-id="${b._id}">Cancel</button>`:""}</div>`).join("")
     : '<div class="empty">No bookings yet.</div>';
+  setBookingBlockedState();
+  if(avail) drawGrid();
   document.querySelectorAll(".cancel").forEach(btn=>btn.onclick=async()=>{
     await authFetch("/api/bookings/"+btn.dataset.id+"/release",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:"cancelled"})});
     toast("Booking cancelled — slot freed");await loadAvail();await loadMine();await loadProfile();});}
@@ -289,7 +310,7 @@ async function loadAll(){
   await loadAvail();refreshNeed();await loadMine();await loadProfile();await loadNotifications();
   setInterval(pollFreed,15000);}
 
-["bat","soc0","socT","bay"].forEach(id=>g(id).addEventListener("input",()=>{sel=null;g("sumcontent").style.display="none";g("empty").style.display="block";g("empty").textContent="Pick a start slot to see the cost.";refreshNeed();drawGrid();}));
+["bat","soc0","socT","bay"].forEach(id=>g(id).addEventListener("input",()=>{sel=null;g("sumcontent").style.display="none";g("empty").style.display="block";g("empty").textContent="Pick a start slot to see the cost.";refreshNeed();setBookingBlockedState();drawGrid();}));
 g("confirm").onclick=confirmBooking;
 g("bellBtn").onclick=async()=>{ g("notifMenu").classList.toggle("open"); await loadNotifications(); };
 document.addEventListener("click", e=>{ if(!e.target.closest(".bellwrap")) g("notifMenu").classList.remove("open"); });

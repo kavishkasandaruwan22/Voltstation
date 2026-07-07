@@ -61,9 +61,13 @@ const BookingSchema = new Schema({
   energyKwh: Number,
   lockedPrices: [Number],     // Rs/kWh locked per slot at booking time
   totalCost: Number,
-  status: { type: String, default: "booked" },  // booked|charging|done|noshow
+  status: { type: String, default: "booked" },  // booked|charging|done|cancelled|noshow
   createdAt: { type: Date, default: Date.now }
 });
+BookingSchema.index(
+  { userId: 1 },
+  { unique: true, partialFilterExpression: { status: { $in: ["booked", "charging"] } } }
+);
 
 // ── Occupancy: one doc per occupied (station,date,bay,slot). The UNIQUE index
 //    is what makes booking exclusive — two people cannot grab the same cell. ──

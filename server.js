@@ -19,13 +19,15 @@ app.use(express.static(path.join(__dirname, "public")));
 
 const tomorrow = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 const hhmm = t => { const h = Math.floor(t), m = Math.round((t - h) * 60); return h + ":" + (m < 10 ? "0" + m : m); };
+const ACTIVE_BOOKING_STATUSES = ["booked", "charging"];
+const ACTIVE_BOOKING_MESSAGE = "You already have an active booking. Please cancel or complete your existing booking before making another reservation.";
 
 async function notifySlotFreed({ station, booking, date, bayId, slotStart, slotCount }) {
   const slots = P.buildSlots(station);
   const startTime = hhmm(slots[slotStart]);
   const endTime = hhmm(slots[Math.min(slots.length - 1, slotStart + slotCount - 1)]);
   const users = await User.find({ role: "user" }).select("_id");
-  const message = "Booking Slot Available";
+  const message = `Bay ${bayId} is now available (${startTime}–${endTime})`;
   const link = `/index.html?date=${date}&bay=${bayId}&slot=${slotStart}&highlight=1`;
   const docs = users.map(u => ({
     userId: u._id,
@@ -209,6 +211,12 @@ app.post("/api/bookings", A.requireAuth, async (req, res) => {
     const { bayId, startSlot, batteryKwh, soc0, socT } = req.body;
     const station = await getStation();
     const date = req.body.date || tomorrow();
+    const activeBooking = await Booking.findOne({
+      userId: req.user.id,
+      status: { $in: ACTIVE_BOOKING_STATUSES }
+    }).lean();
+    if (activeBooking) return res.status(409).json({ error: ACTIVE_BOOKING_MESSAGE, activeBooking });
+
     const fc = await Forecast.findOne({ stationId: station._id, date });
     if (!fc) return res.status(404).json({ error: "no forecast" });
     const bay = station.bays.find(b => b.bayId === bayId);
@@ -237,7 +245,12 @@ app.post("/api/bookings", A.requireAuth, async (req, res) => {
     });
     await expireNotificationsForSlot({ stationId: station._id, date, bayId, startSlot, slotCount: q.slotCount });
     res.json({ booking, breakdown: q.breakdown, flatCost: +(energy * P.flatRate(station, bay.type)).toFixed(2) });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    if (e && e.code === 11000) {
+      return res.status(409).json({ error: ACTIVE_BOOKING_MESSAGE });
+    }
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // a user sees their own bookings; an admin sees all
