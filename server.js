@@ -265,7 +265,10 @@ app.post("/api/bookings/:id/release", A.requireAuth, async (req, res) => {
   if (!b) return res.status(404).json({ error: "not found" });
   if (b.userId !== req.user.id && req.user.role !== "admin")
     return res.status(403).json({ error: "not your booking" });
-  b.status = req.body.status || "cancelled"; await b.save();
+  b.status = req.body.status || "cancelled";
+  if (b.status === "cancelled") b.cancelledAt = new Date();
+  if (b.status === "done") b.completedAt = new Date();
+  await b.save();
   await Occupancy.deleteMany({ bookingId: b._id });
   const station = await Station.findById(b.stationId).lean();
   if (b.status === "cancelled" || b.status === "noshow") {
@@ -276,8 +279,24 @@ app.post("/api/bookings/:id/release", A.requireAuth, async (req, res) => {
 });
 
 // ════════════════════ ADMIN ════════════════════
-app.get("/api/admin/bookings", A.requireAdmin, async (_, res) =>
-  res.json(await Booking.find().sort({ createdAt: -1 })));
+app.get("/api/admin/bookings", A.requireAdmin, async (_, res) => {
+  const station = await getStation();
+  const slots = station ? P.buildSlots(station) : [];
+  const bookings = await Booking.find().sort({ createdAt: -1 }).lean();
+  const users = await User.find({ _id: { $in: bookings.map(b => b.userId).filter(mongoose.Types.ObjectId.isValid) } }).lean();
+  const userById = new Map(users.map(u => [String(u._id), u]));
+  res.json(bookings.map(b => {
+    const user = userById.get(String(b.userId));
+    const endSlot = Math.min(slots.length, b.startSlot + b.slotCount);
+    return {
+      ...b,
+      customerName: b.userName || user?.name || b.userId,
+      vehicle: user ? [user.vehicleBrand, user.vehicleModel].filter(Boolean).join(" ") : "",
+      startTime: slots[b.startSlot] !== undefined ? hhmm(slots[b.startSlot]) : "",
+      endTime: slots[endSlot] !== undefined ? hhmm(slots[endSlot]) : "close"
+    };
+  }));
+});
 app.get("/api/admin/forecast", A.requireAdmin, async (_, res) => {
   const station = await getStation();
   const fc = await Forecast.findOne({ stationId: station._id, date: tomorrow() });

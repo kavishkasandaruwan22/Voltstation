@@ -71,16 +71,17 @@ const token = localStorage.getItem("vs_token");
 if (!token) location.href = "login.html";
 async function authFetch(url){const r=await fetch(url,{headers:{Authorization:"Bearer "+token}});if(r.status===401){localStorage.clear();location.href="login.html";throw new Error("unauth");}return r;}
 const g=id=>document.getElementById(id);
+const rs=n=>Number(n||0).toFixed(2);
 
 (async ()=>{
   const sp = await (await authFetch("/api/analysis")).json();
   const pr = sp.pricing;
   g("eq").textContent =
 "price(t) = [ LCOI + s\u00b7\u03c4_export + (1\u2212s)\u00b7\u03c4_import + demand ] \u00d7 (1 + margin)\n\n"+
-"  LCOI (AC)   = Rs "+pr.lcoi.AC+"/kWh      (charger + solar recovery)\n"+
-"  \u03c4_import    = Rs "+pr.tariff.importAC+"/kWh      (grid electricity)\n"+
-"  \u03c4_export    = Rs "+pr.tariff.export+"/kWh   (solar export credit given up)\n"+
-"  demand      = Rs "+pr.tariff.demandPerKwh+"/kWh\n"+
+"  LCOI (AC)   = Rs "+rs(pr.lcoi.AC)+"/kWh      (charger + solar recovery)\n"+
+"  \u03c4_import    = Rs "+rs(pr.tariff.importAC)+"/kWh      (grid electricity cost)\n"+
+"  \u03c4_export    = Rs "+rs(pr.tariff.export)+"/kWh   (solar export credit given up)\n"+
+"  demand      = Rs "+rs(pr.tariff.demandPerKwh)+"/kWh\n"+
 "  margin      = "+(pr.margin*100).toFixed(0)+" %";
   g("range").innerHTML =
     '<span class="stat">Cheapest (full solar): Rs '+pr.floorAC+'/kWh</span>'+

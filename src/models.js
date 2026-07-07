@@ -62,6 +62,8 @@ const BookingSchema = new Schema({
   lockedPrices: [Number],     // Rs/kWh locked per slot at booking time
   totalCost: Number,
   status: { type: String, default: "booked" },  // booked|charging|done|cancelled|noshow
+  cancelledAt: Date,
+  completedAt: Date,
   createdAt: { type: Date, default: Date.now }
 });
 BookingSchema.index(

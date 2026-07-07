@@ -2,39 +2,55 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VoltStation — Station owner</title>
+<title>VoltStation - Station owner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#F6F7F5;--panel:#FFF;--ink:#16221F;--muted:#6B756F;--primary:#0E4D52;--solar:#E8A33D;--solar-d:#C9892B;--line:#E4E6E1;--line-2:#EEF0EC;--shadow:0 1px 2px rgba(20,34,31,.04),0 8px 24px rgba(20,34,31,.06)}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5}
-  h1,h2,h3{font-family:"Space Grotesk",sans-serif;margin:0;letter-spacing:-.01em}
-  .num{font-variant-numeric:tabular-nums}.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+  h1,h2,h3{font-family:"Space Grotesk",sans-serif;margin:0;letter-spacing:0}
+  .num{font-variant-numeric:tabular-nums}.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
   header{border-bottom:1px solid var(--line);background:var(--panel)}
-  .topbar{display:flex;align-items:center;justify-content:space-between;height:62px}
-  .brand{display:flex;align-items:center;gap:10px;font-family:"Space Grotesk";font-weight:700;font-size:18px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;height:62px;gap:18px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:"Space Grotesk";font-weight:700;font-size:18px;white-space:nowrap}
   .spark{width:22px;height:22px;border-radius:6px;background:radial-gradient(circle at 50% 35%,var(--primary),#0A3B3F)}
   .tag{font-size:11px;background:#E1F0F0;color:var(--primary);font-weight:600;padding:2px 8px;border-radius:20px;margin-left:4px}
   .who{display:flex;align-items:center;gap:14px;color:var(--muted);font-size:13.5px}.who b{color:var(--ink)}
   .logout{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit;color:var(--ink)}.logout:hover{background:#F1F2EF}
-  .hero{padding:24px 0 8px}.hero h1{font-size:25px;font-weight:600}
-  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding:16px 0}
-  @media(max-width:760px){.cards{grid-template-columns:1fr 1fr}}
-  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow)}
+  .hero{padding:24px 0 14px;display:flex;align-items:flex-end;justify-content:space-between;gap:18px}.hero h1{font-size:25px;font-weight:600}.hero p{margin:4px 0 0;color:var(--muted);font-size:13.5px}
+  .tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:20px;overflow-x:auto}
+  .tab{border:none;background:transparent;color:var(--muted);font-family:"Space Grotesk";font-weight:600;font-size:14px;padding:13px 16px 12px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+  .tab.active{color:var(--primary);border-bottom-color:var(--solar)}
+  .tabpane{display:none}.tabpane.active{display:block}
+  .cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding:0 0 18px}
+  @media(max-width:760px){.cards{grid-template-columns:1fr}.hero{display:block}}
+  .stat{min-height:96px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);display:flex;flex-direction:column;justify-content:space-between}
   .stat .l{font-size:12px;color:var(--muted);font-weight:500}.stat .v{font-family:"Space Grotesk";font-size:24px;font-weight:600;margin-top:4px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);margin-bottom:24px}
-  .card h2{font-size:15px;font-weight:600;padding:16px 20px;border-bottom:1px solid var(--line-2);display:flex;justify-content:space-between;align-items:center}
-  .card .body{padding:6px 20px 18px}
+  .card h2{font-size:15px;font-weight:600;padding:16px 20px;border-bottom:1px solid var(--line-2);display:flex;justify-content:space-between;align-items:center;gap:14px}
+  .card .body{padding:18px 20px}
   .btnp{border:none;background:var(--primary);color:#fff;border-radius:9px;padding:8px 14px;font-family:"Space Grotesk";font-weight:600;font-size:13px;cursor:pointer}.btnp:hover{background:#0A3B3F}
-  table.bk{width:100%;border-collapse:collapse;font-size:13.5px}
-  table.bk th{text-align:left;color:var(--muted);font-weight:600;font-size:12px;padding:10px 8px;border-bottom:1px solid var(--line-2)}
-  table.bk td{padding:10px 8px;border-bottom:1px solid var(--line-2)}
-  .pill{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600}
-  .pill.booked{background:#E1F0F0;color:var(--primary)}.pill.done{background:#EFEFEC;color:var(--muted)}.pill.noshow{background:#FBE6DC;color:#B6552F}
+  .btns{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.hint{color:var(--muted);font-size:12.5px}
+  .tablewrap{overflow:auto;max-width:100%;padding-bottom:2px}
+  table.bk{width:100%;min-width:1180px;border-collapse:collapse;font-size:13.5px}
+  table.bk th{text-align:left;color:var(--muted);font-weight:600;font-size:12px;padding:10px 8px;border-bottom:1px solid var(--line-2);white-space:nowrap}
+  table.bk td{padding:10px 8px;border-bottom:1px solid var(--line-2);vertical-align:top;white-space:nowrap}
+  .pill{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;text-transform:capitalize}
+  .pill.booked,.pill.charging{background:#E1F0F0;color:var(--primary)}.pill.done{background:#EFEFEC;color:var(--muted)}.pill.cancelled,.pill.noshow{background:#FBE6DC;color:#B6552F}
   .rel{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 10px;font-size:12px;cursor:pointer;color:#B6552F}.rel:hover{background:#FBE6DC}
-  .cfg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 24px;font-size:13.5px;padding-top:10px}
-  .cfg div span{color:var(--muted)}
+  .formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+  @media(max-width:840px){.formgrid{grid-template-columns:1fr}}
+  .section{border:1px solid var(--line-2);border-radius:12px;padding:16px;background:#fff}
+  .section h3{font-size:14px;font-weight:600;margin-bottom:12px}
+  .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  @media(max-width:620px){.fields{grid-template-columns:1fr}}
+  label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px;font-weight:500}
+  input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-family:inherit;font-size:14px;background:#fff;color:var(--ink)}
+  .desc{font-size:11.5px;color:var(--muted);margin-top:4px;min-height:18px}
+  .cfg{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 24px;font-size:13.5px}
+  @media(max-width:840px){.cfg{grid-template-columns:1fr 1fr}}@media(max-width:560px){.cfg{grid-template-columns:1fr}}
+  .cfg div{border-bottom:1px solid var(--line-2);padding-bottom:8px}.cfg div span{color:var(--muted);display:block;font-size:12px}
   .empty{color:var(--muted);text-align:center;padding:24px}
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;box-shadow:var(--shadow);transition:.25s;pointer-events:none;z-index:9}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -46,38 +62,81 @@
   <div class="who"><span>Hi, <b id="uname"></b></span><button class="logout" id="logout">Log out</button></div>
 </div></header>
 
-<div class="wrap">
-  <div class="hero"><h1 id="stname">Station dashboard</h1></div>
-  <div class="cards">
-    <div class="stat"><div class="l">Bookings tomorrow</div><div class="v num" id="kBookings">—</div></div>
-    <div class="stat"><div class="l">Energy booked</div><div class="v num" id="kEnergy">—</div></div>
-    <div class="stat"><div class="l">Revenue (booked)</div><div class="v num" id="kRevenue">—</div></div>
-    <div class="stat"><div class="l">PV system</div><div class="v num" id="kPV">—</div></div>
+<main class="wrap">
+  <div class="hero">
+    <div><h1 id="stname">Station dashboard</h1><p>Manage bookings, pricing, and station settings.</p></div>
   </div>
 
-  <div class="card">
-    <h2>All bookings <button class="btnp" id="refreshFc">Rebuild tomorrow's forecast</button></h2>
-    <div class="body"><div id="bkwrap"><div class="empty">Loading…</div></div></div>
-  </div>
+  <nav class="tabs" aria-label="Admin sections">
+    <button class="tab active" data-tab="bookings">Bookings</button>
+    <button class="tab" data-tab="tariff">Tariff</button>
+    <button class="tab" data-tab="station">Station Configuration</button>
+  </nav>
 
+  <section class="tabpane active" id="tab-bookings">
+    <div class="cards">
+      <div class="stat"><div class="l">Bookings Tomorrow</div><div class="v num" id="kBookings">...</div></div>
+      <div class="stat"><div class="l">Energy Booked</div><div class="v num" id="kEnergy">...</div></div>
+      <div class="stat"><div class="l">Revenue (Booked)</div><div class="v num" id="kRevenue">...</div></div>
+    </div>
     <div class="card">
-    <h2>Solar vs grid (booked EV demand)</h2>
-    <div class="body">
-      <div class="cards" id="svgstats" style="margin-bottom:8px"></div>
-      <div id="svgchart"></div>
-      <div style="display:flex;gap:16px;font-size:12.5px;color:var(--muted);margin-top:8px">
-        <span><span style="display:inline-block;width:12px;height:11px;background:#FBEEC9;border:1px solid #E8A33D;vertical-align:-1px"></span> surplus solar</span>
-        <span><span style="display:inline-block;width:12px;height:11px;background:#E8A33D;vertical-align:-1px"></span> EV on solar</span>
-        <span><span style="display:inline-block;width:12px;height:11px;background:#8A8F89;vertical-align:-1px"></span> EV on grid</span>
+      <h2>All bookings</h2>
+      <div class="body"><div id="bkwrap"><div class="empty">Loading...</div></div></div>
+    </div>
+  </section>
+
+  <section class="tabpane" id="tab-tariff">
+    <form id="tariffForm" class="card">
+      <h2>Pricing parameters <button class="btnp" type="submit">Save Changes</button></h2>
+      <div class="body">
+        <div class="formgrid">
+          <div class="section">
+            <h3>Tariff Parameters</h3>
+            <div class="fields">
+              <div><label for="lcoiAC">LCOI (AC) - Rs/kWh</label><input id="lcoiAC" type="number" step="0.01" min="0"><div class="desc">Charger + Solar Recovery</div></div>
+              <div><label for="lcoiDC">LCOI (DC) - Rs/kWh</label><input id="lcoiDC" type="number" step="0.01" min="0"><div class="desc">DC charger recovery</div></div>
+              <div><label for="importAC">tau_import AC - Rs/kWh</label><input id="importAC" type="number" step="0.01" min="0"><div class="desc">Grid Electricity Cost</div></div>
+              <div><label for="importDC">tau_import DC - Rs/kWh</label><input id="importDC" type="number" step="0.01" min="0"><div class="desc">DC grid electricity cost</div></div>
+              <div><label for="exportCredit">tau_export - Rs/kWh</label><input id="exportCredit" type="number" step="0.01" min="0"><div class="desc">Solar Export Credit Given Up</div></div>
+              <div><label for="demandCharge">Demand Charge - Rs/kWh</label><input id="demandCharge" type="number" step="0.01" min="0"><div class="desc">Demand charge allocation</div></div>
+              <div><label for="marginPct">Profit Margin - %</label><input id="marginPct" type="number" step="0.01" min="0"><div class="desc">Applied after base cost</div></div>
+            </div>
+          </div>
+          <div class="section">
+            <h3>PV System Configuration</h3>
+            <div class="fields">
+              <div><label for="pvKW">PV System Capacity - kW</label><input id="pvKW" type="number" step="0.01" min="0"><div class="desc">Solar array size used by forecasts</div></div>
+              <div><label for="performanceRatio">Performance Ratio</label><input id="performanceRatio" type="number" step="0.01" min="0"><div class="desc">PV conversion efficiency factor</div></div>
+              <div><label for="tilt">Panel Tilt - degrees</label><input id="tilt" type="number" step="0.1" min="0"><div class="desc">PVGIS angle setting</div></div>
+              <div><label for="loss">System Loss - %</label><input id="loss" type="number" step="0.1" min="0"><div class="desc">PVGIS loss setting</div></div>
+            </div>
+          </div>
+        </div>
+        <p class="hint">Saved values are stored on the station record and are used immediately by booking quotes, price curves, and user-facing tariff displays.</p>
+      </div>
+    </form>
+  </section>
+
+  <section class="tabpane" id="tab-station">
+    <div class="card">
+      <h2>Solar vs Grid (Booked EV Demand)</h2>
+      <div class="body">
+        <div class="cards" id="svgstats" style="margin-bottom:8px"></div>
+        <div id="svgchart"></div>
+        <div style="display:flex;gap:16px;font-size:12.5px;color:var(--muted);margin-top:8px;flex-wrap:wrap">
+          <span><span style="display:inline-block;width:12px;height:11px;background:#FBEEC9;border:1px solid #E8A33D;vertical-align:-1px"></span> surplus solar</span>
+          <span><span style="display:inline-block;width:12px;height:11px;background:#E8A33D;vertical-align:-1px"></span> EV on solar</span>
+          <span><span style="display:inline-block;width:12px;height:11px;background:#8A8F89;vertical-align:-1px"></span> EV on grid</span>
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="card">
-    <h2>Station configuration</h2>
-    <div class="body"><div class="cfg" id="cfg"></div></div>
-  </div>
-</div>
+    <div class="card">
+      <h2>Station Configuration <button class="btnp" id="refreshFc" type="button">Rebuild tomorrow's forecast</button></h2>
+      <div class="body"><div class="cfg" id="cfg"></div></div>
+    </div>
+  </section>
+</main>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -91,53 +150,125 @@ async function authFetch(url, opts = {}) {
 }
 const g = id => document.getElementById(id);
 function toast(m){const e=g("toast");e.textContent=m;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),2600);}
+function money(n){return "Rs " + Number(n || 0).toFixed(0);}
+function fmtDateTime(v){return v ? new Date(v).toLocaleString() : "";}
+function val(id){return Number(g(id).value);}
 
 let station = null;
+function setTab(name){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.dataset.tab===name));
+  document.querySelectorAll(".tabpane").forEach(p=>p.classList.toggle("active", p.id==="tab-"+name));
+}
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>setTab(t.dataset.tab));
+
 async function loadStation(){
   station = await (await authFetch("/api/station")).json();
   g("stname").textContent = station.name;
   g("uname").textContent = localStorage.getItem("vs_name") || "Owner";
-  g("kPV").textContent = station.pvKW + " kWp";
+  fillTariffForm();
+  renderStationConfig();
+}
+
+function fillTariffForm(){
+  const t = station.tariff;
+  g("lcoiAC").value = station.lcoi.AC;
+  g("lcoiDC").value = station.lcoi.DC;
+  g("importAC").value = t.importAC;
+  g("importDC").value = t.importDC;
+  g("exportCredit").value = t.export;
+  g("demandCharge").value = t.demandPerKwh;
+  g("marginPct").value = (station.margin * 100).toFixed(2);
+  g("pvKW").value = station.pvKW;
+  g("performanceRatio").value = station.performanceRatio;
+  g("tilt").value = station.tilt;
+  g("loss").value = station.loss;
+}
+
+function renderStationConfig(){
   const t = station.tariff, b = station.bays;
   g("cfg").innerHTML = [
     ["Location", station.lat + ", " + station.lon],
     ["PV size", station.pvKW + " kWp"],
+    ["Performance ratio", station.performanceRatio],
+    ["Tilt / loss", station.tilt + " deg / " + station.loss + " %"],
     ["Bays", b.length + " (" + b.filter(x=>x.type==="AC").length + " AC, " + b.filter(x=>x.type==="DC").length + " DC)"],
-    ["Hours", station.openHour + " – " + station.closeHour],
+    ["Bay IDs", b.map(x=>x.bayId + " " + x.type + " " + x.power + "kW").join(", ")],
+    ["Hours", station.openHour + " - " + station.closeHour],
     ["Slot length", station.slotMinutes + " min"],
+    ["Charging efficiency", (station.eta * 100).toFixed(0) + " %"],
     ["Import AC / DC", "Rs " + t.importAC + " / " + t.importDC],
     ["Export credit", "Rs " + t.export],
     ["LCOI AC / DC", "Rs " + station.lcoi.AC + " / " + station.lcoi.DC],
     ["Margin", (station.margin*100).toFixed(0) + " %"]
-  ].map(([k,v])=>`<div><span>${k}:</span> <b>${v}</b></div>`).join("");
+  ].map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join("");
 }
+
+async function saveTariff(e){
+  e.preventDefault();
+  const payload = {
+    pvKW: val("pvKW"),
+    performanceRatio: val("performanceRatio"),
+    tilt: val("tilt"),
+    loss: val("loss"),
+    tariff: {
+      importAC: val("importAC"),
+      importDC: val("importDC"),
+      export: val("exportCredit"),
+      demandPerKwh: val("demandCharge")
+    },
+    lcoi: { AC: val("lcoiAC"), DC: val("lcoiDC") },
+    margin: val("marginPct") / 100
+  };
+  const r = await authFetch("/api/station/" + station._id, { method:"PUT", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload) });
+  if(!r.ok){ const d=await r.json().catch(()=>({})); toast(d.error || "Could not save changes"); return; }
+  station = await r.json();
+  fillTariffForm();
+  renderStationConfig();
+  await Promise.all([loadBookings(), loadSolarGrid()]);
+  toast("Tariff changes saved");
+}
+g("tariffForm").addEventListener("submit", saveTariff);
 
 async function loadBookings(){
   const list = await (await authFetch("/api/admin/bookings")).json();
+  const tomorrow = new Date(Date.now()+864e5).toISOString().slice(0,10);
+  const bookedTomorrow = list.filter(b => b.status === "booked" && b.date === tomorrow);
   const active = list.filter(b => b.status === "booked");
-  g("kBookings").textContent = active.length;
-  g("kEnergy").textContent = active.reduce((s,b)=>s+b.energyKwh,0).toFixed(0) + " kWh";
-  g("kRevenue").textContent = "Rs " + active.reduce((s,b)=>s+b.totalCost,0).toFixed(0);
+  g("kBookings").textContent = bookedTomorrow.length;
+  g("kEnergy").textContent = active.reduce((s,b)=>s+(b.energyKwh||0),0).toFixed(0) + " kWh";
+  g("kRevenue").textContent = money(active.reduce((s,b)=>s+(b.totalCost||0),0));
   if (!list.length) { g("bkwrap").innerHTML = '<div class="empty">No bookings yet.</div>'; return; }
-  g("bkwrap").innerHTML = `<table class="bk"><tr><th>User</th><th>Bay</th><th>Date</th><th>Slots</th><th>Energy</th><th>Cost</th><th>Status</th><th></th></tr>` +
+  g("bkwrap").innerHTML = `<div class="tablewrap"><table class="bk"><tr>
+    <th>Booking ID</th><th>Customer Name</th><th>Vehicle</th><th>Charger</th><th>Booking Date</th><th>Booking Time</th>
+    <th>Start Time</th><th>End Time</th><th>Energy Reserved (kWh)</th><th>Estimated Cost</th><th>Booking Status</th><th>Cancel Time</th><th></th>
+  </tr>` +
     list.map(b=>`<tr>
-      <td>${b.userName||b.userId}</td><td>${b.bayId}</td><td>${b.date}</td>
-      <td class="num">${b.startSlot}–${b.startSlot+b.slotCount-1}</td>
-      <td class="num">${b.energyKwh} kWh</td><td class="num">Rs ${b.totalCost.toFixed(0)}</td>
+      <td>${String(b._id).slice(-8)}</td>
+      <td>${b.customerName||b.userName||b.userId}</td>
+      <td>${b.vehicle||"-"}</td>
+      <td>${b.bayId} ${b.type?`(${b.type})`:""}</td>
+      <td>${b.date}</td>
+      <td>${fmtDateTime(b.createdAt)}</td>
+      <td>${b.startTime||"-"}</td>
+      <td>${b.endTime||"-"}</td>
+      <td class="num">${Number(b.energyKwh||0).toFixed(2)}</td>
+      <td class="num">${money(b.totalCost)}</td>
       <td><span class="pill ${b.status}">${b.status}</span></td>
+      <td>${b.status==="cancelled" ? fmtDateTime(b.cancelledAt) : ""}</td>
       <td>${b.status==="booked"?`<button class="rel" data-id="${b._id}">Release</button>`:""}</td>
-    </tr>`).join("") + `</table>`;
+    </tr>`).join("") + `</table></div>`;
   document.querySelectorAll(".rel").forEach(btn=>btn.onclick=async()=>{
     await authFetch("/api/bookings/"+btn.dataset.id+"/release",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:"noshow"})});
-    toast("Slot released"); await loadBookings();});
+    toast("Slot released"); await Promise.all([loadBookings(), loadSolarGrid()]);
+  });
 }
 
 g("refreshFc").onclick = async () => {
   const d = await (await authFetch("/api/forecast/refresh",{method:"POST"})).json();
   toast("Forecast rebuilt for " + d.date + " (" + d.source + ")");
+  await loadSolarGrid();
 };
 g("logout").onclick = () => { localStorage.clear(); location.href = "login.html"; };
-
 
 async function loadSolarGrid(){
   const d = await (await authFetch("/api/analysis")).json();
