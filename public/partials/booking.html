@@ -1,4 +1,4 @@
-<main class="page booking-page">
+﻿<main class="page booking-page">
   <div class="wrap booking-wrap">
     <section class="booking-hero card panel">
       <div>
@@ -42,10 +42,11 @@
           <select id="charger-type"></select>
         </div>
         <div class="field">
-          <label for="booking-date">Date</label>
-          <input id="booking-date" type="date">
+          <label for="bay-select">Select Bay</label>
+          <select id="bay-select" required></select>
         </div>
       </div>
+      <div class="date-note"><strong>Booking Date:</strong> Tomorrow (Automatically Selected)</div>
       <div class="result-grid">
         <div class="result-tile"><span>Required energy</span><strong id="required-energy">-</strong></div>
         <div class="result-tile"><span>Estimated duration</span><strong id="estimated-duration">-</strong></div>
@@ -80,11 +81,14 @@
         <div class="slot-legend" aria-label="Slot legend">
           <span><i class="legend-dot available"></i>Available</span>
           <span><i class="legend-dot selected"></i>Selected</span>
-          <span><i class="legend-dot unavailable"></i>Unavailable</span>
-          <span><i class="legend-dot peak"></i>Peak price</span>
+          <span><i class="legend-dot booked"></i>Booked</span>
+          <span><i class="legend-dot solar"></i>Solar Discount</span>
+          <span><i class="legend-dot disabled"></i>Disabled</span>
         </div>
       </div>
-      <div id="slot-grid" class="slot-grid"></div>
+      <div class="slot-table-wrap">
+        <div id="slot-grid" class="slot-table"></div>
+      </div>
     </section>
 
     <section class="booking-columns">

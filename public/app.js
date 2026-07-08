@@ -9,7 +9,9 @@ let state = {
   prices: null,
   bookings: [],
   selected: null,
-  recommendation: null
+  recommendation: null,
+  energyChart: null,
+  priceChart: null
 };
 
 const ACTIVE_STATUSES = ["booked", "charging"];
@@ -63,7 +65,7 @@ function timeAt(slot) {
 function bookingTime(booking) {
   if (!booking) return "Time pending";
   const start = timeAt(booking.startSlot);
-  const end = timeAt(Math.min((availability?.slotTimes?.length || 1) - 1, booking.startSlot + booking.slotCount));
+  const end = timeAt(Math.min((availability?.slotTimes?.length || 1), booking.startSlot + booking.slotCount));
   return `${start} - ${end}`;
 }
 
@@ -263,6 +265,21 @@ function selectedType() {
   return document.getElementById("charger-type")?.value || state.station?.bays?.[0]?.type || "AC";
 }
 
+function baysForSelectedType() {
+  return (availability?.grid || state.station?.bays || []).filter((bay) => bay.type === selectedType());
+}
+
+function selectedBayId() {
+  return document.getElementById("bay-select")?.value || baysForSelectedType()[0]?.bayId || "";
+}
+
+function bayDisplayName(row, index = 0) {
+  const type = row?.type || selectedType();
+  const match = String(row?.bayId || "").match(/(\d+)$/);
+  const number = match ? match[1] : String(index + 1);
+  return `${type} Bay ${number}`;
+}
+
 function vehicleCapacity() {
   return Number(state.me?.batteryCapacity || localStorage.getItem("vs_batteryCapacity") || 50);
 }
@@ -309,16 +326,19 @@ function isBlockAvailable(row, start, count) {
 function computeRecommendation() {
   if (!availability?.grid) return null;
   const type = selectedType();
+  const bayId = selectedBayId();
   const count = slotCountFor(type);
   let best = null;
-  availability.grid.filter((row) => row.type === type).forEach((row) => {
-    row.cells.forEach((cell, start) => {
-      if (!isBlockAvailable(row, start, count)) return;
-      const cost = estimateCost(row, start, count);
-      const candidate = { bayId: row.bayId, type: row.type, start, count, cost };
-      if (!best || candidate.cost < best.cost) best = candidate;
+  availability.grid
+    .filter((row) => row.type === type && (!bayId || row.bayId === bayId))
+    .forEach((row) => {
+      slotCells().forEach(({ slot }) => {
+        if (!isBlockAvailable(row, slot, count)) return;
+        const cost = estimateCost(row, slot, count);
+        const candidate = { bayId: row.bayId, type: row.type, start: slot, count, cost };
+        if (!best || candidate.cost < best.cost) best = candidate;
+      });
     });
-  });
   state.recommendation = best;
   return best;
 }
@@ -363,17 +383,26 @@ function renderVehicle() {
 function renderRequirement() {
   const typeSelect = document.getElementById("charger-type");
   if (typeSelect && !typeSelect.options.length) {
-    const types = [...new Set((state.station?.bays || []).map((bay) => bay.type))];
-    typeSelect.innerHTML = types.map((type) => `<option value="${type}">${type} - ${chargerPower(type)} kW</option>`).join("");
+    const types = [...new Set((state.station?.bays || availability?.grid || []).map((bay) => bay.type))];
+    typeSelect.innerHTML = types.map((type) => `<option value="${type}">${type === "DC" ? "DC Fast Charger" : "AC Charger"} - ${chargerPower(type)} kW</option>`).join("");
   }
-  const dateInput = document.getElementById("booking-date");
-  if (dateInput && !dateInput.value) dateInput.value = currentDate;
+  renderBayOptions();
   const energy = energyNeeded();
   const duration = energy / Math.max(1, chargerPower(selectedType()) * Number(state.station?.eta || 1));
   const energyTarget = document.getElementById("required-energy");
   const durationTarget = document.getElementById("estimated-duration");
   if (energyTarget) energyTarget.textContent = `${energy.toFixed(1)} kWh`;
   if (durationTarget) durationTarget.textContent = `${duration.toFixed(1)} hours`;
+}
+
+function renderBayOptions() {
+  const baySelect = document.getElementById("bay-select");
+  if (!baySelect) return;
+  const current = baySelect.value || state.selected?.bayId;
+  const rows = baysForSelectedType();
+  baySelect.innerHTML = rows.map((row, index) => `<option value="${row.bayId}">${bayDisplayName(row, index)}</option>`).join("");
+  if (current && rows.some((row) => row.bayId === current)) baySelect.value = current;
+  else if (rows[0]) baySelect.value = rows[0].bayId;
 }
 
 function renderRecommendation() {
@@ -387,36 +416,66 @@ function renderRecommendation() {
   target.textContent = `${timeAt(rec.start)} - ${timeAt(rec.start + rec.count)} (${rec.bayId})`;
 }
 
+function slotCells() {
+  return (availability?.slotTimes || []).map((time, slot) => ({ time, slot }));
+}
+
+function solarDiscountLine(rows) {
+  const values = rows.flatMap((row) => slotCells().map(({ slot }) => Number(row.cells[slot]?.price || 0))).filter((value) => value > 0).sort((a, b) => a - b);
+  return values.length ? values[Math.floor(values.length * 0.35)] : 0;
+}
+
+function cellState(row, slot, count, discountLine) {
+  const cell = row.cells[slot];
+  if (!cell) return "disabled";
+  if (cell.booked) return "booked";
+  if (!isBlockAvailable(row, slot, count)) return "disabled";
+  const selected = state.selected?.bayId === row.bayId && slot >= state.selected.start && slot < state.selected.start + state.selected.count;
+  if (selected) return "selected";
+  if (Number(cell.price || 0) <= discountLine) return "solar";
+  return "available";
+}
+
 function renderSlots() {
   const target = document.getElementById("slot-grid");
   if (!target || !availability?.grid) return;
   const type = selectedType();
   const count = slotCountFor(type);
-  const rec = state.recommendation || computeRecommendation();
   const rows = availability.grid.filter((row) => row.type === type);
-  const prices = rows.flatMap((row) => row.cells.map((cell) => Number(cell.price || 0)));
-  const peakLine = prices.length ? prices.slice().sort((a, b) => a - b)[Math.floor(prices.length * 0.75)] : Infinity;
-  const cards = [];
-  rows.forEach((row) => {
-    row.cells.forEach((cell, start) => {
-      const availableBlock = isBlockAvailable(row, start, count);
-      const selected = state.selected?.bayId === row.bayId && state.selected?.start === start;
-      const recommended = rec?.bayId === row.bayId && rec?.start === start;
-      const peak = Number(cell.price || 0) >= peakLine;
-      const cls = ["slot-card", availableBlock ? "available" : "unavailable", selected ? "selected" : "", recommended ? "recommended" : "", peak && availableBlock ? "peak" : ""].join(" ");
-      cards.push(`
-        <button type="button" class="${cls}" data-bay="${row.bayId}" data-start="${start}" ${availableBlock ? "" : "disabled"}>
-          <span>${timeAt(start)} - ${timeAt(start + count)}</span>
-          <strong>${row.bayId}</strong>
-          <small>${availableBlock ? (recommended ? "Recommended" : peak ? "Peak price" : "Available") : "Unavailable"}</small>
-          <em>${money(estimateCost(row, start, count))}</em>
-        </button>`);
+  const slots = slotCells();
+  if (!rows.length || !slots.length) {
+    target.innerHTML = '<div class="empty">No slots available for this charger type.</div>';
+    return;
+  }
+  const discountLine = solarDiscountLine(rows);
+  const rec = state.recommendation || computeRecommendation();
+  let html = `<div class="slot-table-head" style="--slot-count: ${slots.length}"><div class="slot-bay-head">Bay</div>`;
+  html += slots.map(({ time }) => `<div class="slot-hour">${time}</div>`).join("");
+  html += '</div>';
+  rows.forEach((row, rowIndex) => {
+    const rowSelected = selectedBayId() === row.bayId;
+    html += `<div class="slot-table-row ${rowSelected ? "active-bay" : ""}" style="--slot-count: ${slots.length}"><div class="slot-bay-name">${bayDisplayName(row, rowIndex)}</div>`;
+    slots.forEach(({ time, slot }) => {
+      const status = cellState(row, slot, count, discountLine);
+      const recommended = rec?.bayId === row.bayId && rec?.start === slot;
+      const label = `${bayDisplayName(row, rowIndex)} ${time}`;
+      html += `<button type="button" class="slot-cell ${status} ${recommended ? "recommended" : ""}" data-bay="${row.bayId}" data-start="${slot}" aria-label="${label}" title="${label} - ${status}" ${status === "booked" || status === "disabled" ? "disabled" : ""}></button>`;
     });
+    html += '</div>';
   });
-  target.innerHTML = cards.join("") || '<div class="empty">No slots available for this charger type.</div>';
-  target.querySelectorAll(".slot-card.available").forEach((button) => {
+  target.innerHTML = html || '<div class="empty">No slots available for this charger type.</div>';
+  target.querySelectorAll(".slot-cell.available, .slot-cell.solar, .slot-cell.selected").forEach((button) => {
     button.addEventListener("click", () => {
-      state.selected = { bayId: button.dataset.bay, start: Number(button.dataset.start), count, type };
+      const bayId = button.dataset.bay;
+      const start = Number(button.dataset.start);
+      const baySelect = document.getElementById("bay-select");
+      if (baySelect) baySelect.value = bayId;
+      if (state.selected?.bayId === bayId && state.selected?.start === start) {
+        state.selected = null;
+      } else {
+        state.selected = { bayId, start, count, type };
+      }
+      renderRecommendation();
       renderSlots();
       renderBookingSummary();
     });
@@ -438,15 +497,18 @@ function renderBookingSummary() {
     return;
   }
   if (!state.selected) {
-    target.innerHTML = '<div class="empty left">Select a time slot to see your booking summary.</div>';
+    target.innerHTML = '<div class="empty left">Select a bay and time slot to see your booking summary.</div>';
     if (confirm) confirm.disabled = true;
     return;
   }
   const row = selectedRow();
   const cost = row ? estimateCost(row, state.selected.start, state.selected.count) : 0;
   const vehicle = `${text(state.me?.vehicleBrand, "Vehicle")} ${text(state.me?.vehicleModel, "")}`.trim();
+  const bayIndex = baysForSelectedType().findIndex((bay) => bay.bayId === row?.bayId);
   target.innerHTML = `
     <div class="summary-row"><span class="k">Vehicle</span><span class="v">${vehicle}</span></div>
+    <div class="summary-row"><span class="k">Charger type</span><span class="v">${row?.type || state.selected.type}</span></div>
+    <div class="summary-row"><span class="k">Selected bay</span><span class="v">${row ? bayDisplayName(row, bayIndex) : state.selected.bayId}</span></div>
     <div class="summary-row"><span class="k">Charging time</span><span class="v">${timeAt(state.selected.start)} - ${timeAt(state.selected.start + state.selected.count)}</span></div>
     <div class="summary-row"><span class="k">Duration</span><span class="v">${(state.selected.count * (Number(state.station?.slotMinutes || 30) / 60)).toFixed(1)} hours</span></div>
     <div class="summary-row"><span class="k">Energy required</span><span class="v">${energyNeeded().toFixed(1)} kWh</span></div>
@@ -505,7 +567,7 @@ function renderBookingPage() {
 }
 
 function bindBookingEvents() {
-  ["soc-current", "soc-target", "charger-type"].forEach((id) => {
+  ["soc-current", "soc-target"].forEach((id) => {
     document.getElementById(id)?.addEventListener("input", () => {
       state.selected = null;
       renderRequirement();
@@ -514,15 +576,24 @@ function bindBookingEvents() {
       renderBookingSummary();
     });
   });
-  document.getElementById("booking-date")?.addEventListener("change", async (event) => {
-    currentDate = event.target.value || currentDate;
+  document.getElementById("charger-type")?.addEventListener("change", () => {
     state.selected = null;
-    await loadCoreData(true);
-    renderBookingPage();
+    renderRequirement();
+    renderRecommendation();
+    renderSlots();
+    renderBookingSummary();
+  });
+  document.getElementById("bay-select")?.addEventListener("change", () => {
+    state.selected = null;
+    renderRecommendation();
+    renderSlots();
+    renderBookingSummary();
   });
   document.getElementById("use-recommendation")?.addEventListener("click", () => {
     const rec = state.recommendation || computeRecommendation();
     if (!rec) return;
+    const baySelect = document.getElementById("bay-select");
+    if (baySelect) baySelect.value = rec.bayId;
     state.selected = rec;
     renderSlots();
     renderBookingSummary();
@@ -533,6 +604,7 @@ function bindBookingEvents() {
 
 async function initBookingPage() {
   try {
+    currentDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
     await loadCoreData(true);
     renderBookingPage();
     bindBookingEvents();
@@ -541,31 +613,124 @@ async function initBookingPage() {
   }
 }
 
+function maxOf(values) {
+  return Math.max(0, ...values.map((value) => Number(value || 0)));
+}
+
+function drawSvgChart(targetId, { labels, datasets, yLabel = "", title = "" }) {
+  const target = document.getElementById(targetId);
+  if (!target) return;
+  const width = 920;
+  const height = 280;
+  const left = 48;
+  const right = 18;
+  const top = 30;
+  const bottom = 44;
+  const values = datasets.flatMap((dataset) => dataset.data);
+  const max = Math.max(1, maxOf(values) * 1.15);
+  const x = (index) => left + (index / Math.max(1, labels.length - 1)) * (width - left - right);
+  const y = (value) => top + (1 - Number(value || 0) / max) * (height - top - bottom);
+  const line = (data) => data.map((value, index) => `${index ? "L" : "M"}${x(index)} ${y(value)}`).join(" ");
+  const areaDataset = datasets.find((dataset) => dataset.fill);
+  const area = areaDataset ? `M ${x(0)} ${height - bottom} ${areaDataset.data.map((value, index) => `L ${x(index)} ${y(value)}`).join(" ")} L ${x(areaDataset.data.length - 1)} ${height - bottom} Z` : "";
+  const grid = [0, 0.25, 0.5, 0.75, 1].map((tick) => {
+    const yy = top + (1 - tick) * (height - top - bottom);
+    return `<line x1="${left}" x2="${width - right}" y1="${yy}" y2="${yy}" stroke="#edf1ee"/><text x="8" y="${yy + 4}" font-size="11" fill="#68756f">${Math.round(max * tick)}</text>`;
+  }).join("");
+  const labelStep = Math.max(1, Math.ceil(labels.length / 13));
+  const ticks = labels.map((label, index) => index % labelStep === 0 ? `<text x="${x(index)}" y="${height - 15}" font-size="11" fill="#68756f" text-anchor="middle">${String(label).split(":")[0]}</text>` : "").join("");
+  const paths = datasets.filter((dataset) => !dataset.fill).map((dataset) => `<path d="${line(dataset.data)}" fill="none" stroke="${dataset.color}" stroke-width="${dataset.width || 3}" stroke-linejoin="round" stroke-dasharray="${dataset.dash || ""}"/>`).join("");
+  target.innerHTML = `<svg viewBox="0 0 ${width} ${height}" width="100%" role="img" aria-label="${title}">
+    ${grid}
+    ${area ? `<path d="${area}" fill="#fbeec9" stroke="#f3d79b"/>` : ""}
+    ${paths}
+    <text x="${left}" y="16" font-size="12" fill="#68756f">${yLabel}</text>
+    ${ticks}
+  </svg>`;
+}
+
+function renderChart(chartKey, canvasId, fallbackId, config) {
+  const canvas = document.getElementById(canvasId);
+  const fallback = document.getElementById(fallbackId);
+  if (window.Chart && canvas) {
+    if (fallback) fallback.innerHTML = "";
+    if (state[chartKey]) state[chartKey].destroy();
+    state[chartKey] = new Chart(canvas, config);
+    return;
+  }
+  if (canvas) canvas.style.display = "none";
+  const datasets = config.data.datasets.map((dataset) => ({
+    data: dataset.data,
+    color: dataset.borderColor || dataset.backgroundColor,
+    fill: !!dataset.fill,
+    dash: dataset.borderDash ? dataset.borderDash.join(" ") : "",
+    width: dataset.borderWidth
+  }));
+  drawSvgChart(fallbackId, {
+    labels: config.data.labels,
+    datasets,
+    yLabel: config.options?.scales?.y?.title?.text || "",
+    title: config.options?.plugins?.title?.text || "Chart"
+  });
+}
+
 async function initPricingPage() {
   try {
     await loadCoreData(true);
     const slots = state.prices?.slots || [];
-    const acPrices = slots.map((slot) => slot.priceAC).filter(Number.isFinite);
-    const min = Math.min(...acPrices);
-    const max = Math.max(...acPrices);
+    const acPrices = slots.map((slot) => Number(slot.priceAC || 0)).filter((value) => value > 0);
+    const min = acPrices.length ? Math.min(...acPrices) : 0;
+    const max = acPrices.length ? Math.max(...acPrices) : 0;
     const avg = acPrices.reduce((sum, value) => sum + value, 0) / Math.max(1, acPrices.length);
     document.getElementById("tariff-cards").innerHTML = `
       <article class="tariff-card card"><span>Peak tariff</span><strong>${money(max)}/kWh</strong><small>Highest demand windows</small></article>
       <article class="tariff-card card"><span>Day tariff</span><strong>${money(avg)}/kWh</strong><small>Typical daytime estimate</small></article>
       <article class="tariff-card card"><span>Off-peak tariff</span><strong>${money(min)}/kWh</strong><small>Lowest expected windows</small></article>`;
-    const solarTotal = slots.reduce((sum, slot) => sum + Math.max(0, Number(slot.surplus || 0)), 0);
-    const gridTotal = slots.reduce((sum, slot) => sum + Math.max(0, Number(slot.load || 0)), 0);
-    const solarPct = Math.round((solarTotal / Math.max(1, solarTotal + gridTotal)) * 100);
-    const gridPct = 100 - solarPct;
-    document.getElementById("solar-fill").style.width = `${solarPct}%`;
-    document.getElementById("grid-fill").style.width = `${gridPct}%`;
-    document.getElementById("solar-percent").textContent = `${solarPct}%`;
-    document.getElementById("grid-percent").textContent = `${gridPct}%`;
-    document.getElementById("forecast-list").innerHTML = slots.filter((_, index) => index % 2 === 0).map((slot) => {
-      const price = Number(slot.priceAC || 0);
-      const cls = price === min ? "low" : price >= avg ? "high" : "day";
-      return `<div class="forecast-item ${cls}"><span>${slot.time}</span><strong>${money(price)}/kWh</strong><small>${cls === "low" ? "Best value" : cls === "high" ? "Peak price" : "Standard"}</small></div>`;
-    }).join("");
+
+    const hourly = slots.filter((slot) => /:00$/.test(slot.time));
+    const labels = (hourly.length ? hourly : slots).map((slot) => slot.time);
+    const source = hourly.length ? hourly : slots;
+    const solar = source.map((slot) => Number(slot.pv || 0));
+    const load = source.map((slot) => Number(slot.load || 0));
+    const capacity = source.map((slot) => Math.max(0, Number(slot.surplus || 0)));
+    const prices = source.map((slot) => Number(slot.priceAC || 0));
+
+    renderChart("energyChart", "energy-chart", "energy-chart-fallback", {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          { label: "Available Charging Capacity", data: capacity, borderColor: "#f3d79b", backgroundColor: "rgba(251, 238, 201, 0.72)", fill: true, tension: 0.35, borderWidth: 1.5 },
+          { label: "Solar Generation", data: solar, borderColor: "#e8a33d", backgroundColor: "#e8a33d", tension: 0.35, borderWidth: 3, pointRadius: 2 },
+          { label: "Building Load", data: load, borderColor: "#6f7470", backgroundColor: "#6f7470", tension: 0.35, borderWidth: 2.5, borderDash: [6, 5], pointRadius: 2 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: "bottom" }, title: { display: false, text: "Energy Information" } },
+        scales: { x: { title: { display: true, text: "Time (6 AM - 6 PM)" } }, y: { beginAtZero: true, title: { display: true, text: "Power (kW)" } } }
+      }
+    });
+
+    document.getElementById("energy-summary-cards").innerHTML = `
+      <article class="energy-summary-card"><span>Solar Generation Forecast</span><strong>${maxOf(solar).toFixed(1)} kW</strong></article>
+      <article class="energy-summary-card"><span>Building Load Forecast</span><strong>${maxOf(load).toFixed(1)} kW</strong></article>
+      <article class="energy-summary-card"><span>Available Charging Capacity</span><strong>${maxOf(capacity).toFixed(1)} kW</strong></article>`;
+
+    renderChart("priceChart", "price-chart", "price-chart-fallback", {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{ label: "Selling Price (Rs/kWh)", data: prices, borderColor: "#0e4d52", backgroundColor: "rgba(14, 77, 82, 0.08)", fill: false, tension: 0.35, borderWidth: 3, pointRadius: 3 }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, title: { display: true, text: "Tomorrow Charging Price Forecast" } },
+        scales: { x: { title: { display: true, text: "Time" } }, y: { beginAtZero: false, title: { display: true, text: "Selling Price (Rs/kWh)" } } }
+      }
+    });
   } catch (error) {
     showToast(error.message);
   }

@@ -213,7 +213,7 @@ app.post("/api/bookings", A.requireAuth, async (req, res) => {
   try {
     const { bayId, startSlot, batteryKwh, soc0, socT } = req.body;
     const station = await getStation();
-    const date = req.body.date || tomorrow();
+    const date = tomorrow();
     const activeBooking = await Booking.findOne({
       userId: req.user.id,
       status: { $in: ACTIVE_BOOKING_STATUSES }
