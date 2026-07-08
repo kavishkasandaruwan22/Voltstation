@@ -15,6 +15,9 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 app.use(cors());
 app.use(express.json());
+app.get(["/", "/booking", "/pricing", "/station", "/profile", "/bookings", "/about"], (_, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 app.use(express.static(path.join(__dirname, "public")));
 
 const tomorrow = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
@@ -27,7 +30,7 @@ async function notifySlotFreed({ station, booking, date, bayId, slotStart, slotC
   const startTime = hhmm(slots[slotStart]);
   const endTime = hhmm(slots[Math.min(slots.length - 1, slotStart + slotCount - 1)]);
   const users = await User.find({ role: "user" }).select("_id");
-  const message = `Bay ${bayId} is now available (${startTime}–${endTime})`;
+  const message = `Bay ${bayId} is now available (${startTime}-${endTime})`;
   const link = `/index.html?date=${date}&bay=${bayId}&slot=${slotStart}&highlight=1`;
   const docs = users.map(u => ({
     userId: u._id,
@@ -83,7 +86,7 @@ async function occupancyPower(station, date, nSlots) {
 
 app.get("/api/ping", (_, res) => res.json({ ok: true }));
 
-// ════════════════════ AUTH ════════════════════
+// AUTH
 // Register a vehicle owner (role "user"). The admin is seeded, not registered.
 app.post("/api/auth/register", async (req, res) => {
   try {
@@ -119,7 +122,7 @@ app.get("/api/auth/me", A.requireAuth, async (req, res) => {
     vehicleBrand: u.vehicleBrand, vehicleModel: u.vehicleModel, batteryCapacity: u.batteryCapacity } });
 });
 
-// ════════════════════ STATION CONFIG ════════════════════
+// STATION CONFIG
 app.get("/api/station", A.requireAuth, async (_, res) => res.json(await getStation()));
 app.put("/api/station/:id", A.requireAdmin, async (req, res) => {
   res.json(await Station.findByIdAndUpdate(req.params.id, req.body, { new: true }));
@@ -136,7 +139,7 @@ app.post("/api/forecast/refresh", A.requireAdmin, async (_, res) => {
   res.json({ date, source, loadSrc, slots: fc.pv.length });
 });
 
-// ════════════════════ PRICES & AVAILABILITY ════════════════════
+// PRICES & AVAILABILITY
 app.get("/api/prices", A.requireAuth, async (req, res) => {
   const station = await getStation();
   const date = req.query.date || tomorrow();
@@ -151,7 +154,7 @@ app.get("/api/prices", A.requireAuth, async (req, res) => {
   res.json({ date, slots: out, flatAC: P.flatRate(station, "AC"), floorAC: P.floorRate(station, "AC") });
 });
 
-// ── solar-vs-grid analysis (per slot: how much EV demand is met by solar vs grid) ──
+// Solar-vs-grid analysis per slot.
 app.get("/api/analysis", A.requireAuth, async (req, res) => {
   const station = await getStation();
   const date = req.query.date || tomorrow();
@@ -205,7 +208,7 @@ app.get("/api/availability", A.requireAuth, async (req, res) => {
     floor: { AC: P.floorRate(station, "AC"), DC: P.floorRate(station, "DC") } });
 });
 
-// ════════════════════ BOOKINGS ════════════════════
+// BOOKINGS
 app.post("/api/bookings", A.requireAuth, async (req, res) => {
   try {
     const { bayId, startSlot, batteryKwh, soc0, socT } = req.body;
@@ -235,7 +238,7 @@ app.post("/api/bookings", A.requireAuth, async (req, res) => {
     for (let i = startSlot; i <= lastSlot; i++)
       occDocs.push({ stationId: station._id, date, bayId, slot: i, power: bay.power, bookingId });
     try { await Occupancy.insertMany(occDocs, { ordered: true }); }
-    catch (e) { await Occupancy.deleteMany({ bookingId }); return res.status(409).json({ error: "slot just taken — pick another" }); }
+    catch (e) { await Occupancy.deleteMany({ bookingId }); return res.status(409).json({ error: "slot just taken - pick another" }); }
 
     const booking = await Booking.create({
       _id: bookingId, stationId: station._id, date,
@@ -259,7 +262,7 @@ app.get("/api/bookings", A.requireAuth, async (req, res) => {
   res.json(await Booking.find(q).sort({ createdAt: -1 }));
 });
 
-// release a booking — owner of the booking or the admin
+// Release a booking: owner of the booking or the admin.
 app.post("/api/bookings/:id/release", A.requireAuth, async (req, res) => {
   const b = await Booking.findById(req.params.id);
   if (!b) return res.status(404).json({ error: "not found" });
@@ -278,7 +281,7 @@ app.post("/api/bookings/:id/release", A.requireAuth, async (req, res) => {
   res.json({ released: b._id, status: b.status, freed: { bayId: b.bayId, startSlot: b.startSlot, slotCount: b.slotCount, date: b.date } });
 });
 
-// ════════════════════ ADMIN ════════════════════
+// ADMIN
 app.get("/api/admin/bookings", A.requireAdmin, async (_, res) => {
   const station = await getStation();
   const slots = station ? P.buildSlots(station) : [];
@@ -326,5 +329,6 @@ app.post("/api/notifications/:id/read", A.requireAuth, async (req, res) => {
   }
 
   const port = process.env.PORT || 4000;
-  server.listen(port, () => console.log(`✓ VoltStation backend on http://localhost:${port}`));
+  server.listen(port, () => console.log(`OK VoltStation backend on http://localhost:${port}`));
 })();
+

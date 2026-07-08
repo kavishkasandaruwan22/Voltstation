@@ -1,0 +1,44 @@
+<main class="page">
+  <div class="wrap slim-wrap">
+    <section class="page-title">
+      <p class="eyebrow">Pricing</p>
+      <h1>Simple charging prices before you book</h1>
+      <p class="muted">Review tariffs, see how the final cost is built, and compare tomorrow's expected price windows.</p>
+    </section>
+
+    <section class="grid grid-3 tariff-grid" id="tariff-cards"></section>
+
+    <section class="grid grid-2 section">
+      <div class="card panel">
+        <h2>Cost calculation</h2>
+        <div class="summary-list spacious">
+          <div class="summary-row"><span class="k">Energy cost</span><span class="v" id="energy-cost-note">Energy needed x selected slot tariff</span></div>
+          <div class="summary-row"><span class="k">Service fee</span><span class="v" id="service-fee-note">Included in displayed estimate</span></div>
+          <div class="summary-row"><span class="k">Final cost</span><span class="v" id="final-cost-note">Shown before confirmation</span></div>
+        </div>
+      </div>
+
+      <div class="card panel">
+        <h2>Solar/Grid contribution</h2>
+        <div class="split-meter" aria-label="Solar and grid contribution">
+          <div class="split-fill solar" id="solar-fill"></div>
+          <div class="split-fill grid" id="grid-fill"></div>
+        </div>
+        <div class="contribution-row">
+          <span><b id="solar-percent">-</b> Solar contribution</span>
+          <span><b id="grid-percent">-</b> Grid contribution</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section card panel">
+      <div class="section-head">
+        <div>
+          <h2>Tomorrow charging price forecast</h2>
+          <p class="muted small">Choose lower-price windows when your schedule is flexible.</p>
+        </div>
+      </div>
+      <div id="forecast-list" class="forecast-list"></div>
+    </section>
+  </div>
+</main>

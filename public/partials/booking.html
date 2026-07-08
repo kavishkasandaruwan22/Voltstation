@@ -1,0 +1,114 @@
+<main class="page booking-page">
+  <div class="wrap booking-wrap">
+    <section class="booking-hero card panel">
+      <div>
+        <p class="eyebrow">Book a Slot</p>
+        <h1 id="booking-welcome">Welcome back</h1>
+        <p class="muted">Select your vehicle, set the charge you need, review the smart recommendation, and reserve a time.</p>
+      </div>
+      <div class="upcoming-card" id="upcoming-booking"></div>
+    </section>
+
+    <section class="flow-card card panel" aria-labelledby="vehicle-title">
+      <div class="section-head">
+        <div>
+          <span class="step-pill">1</span>
+          <h2 id="vehicle-title">Select Vehicle</h2>
+        </div>
+        <button class="btn secondary" type="button" id="add-vehicle-btn">+ Add Vehicle</button>
+      </div>
+      <div id="vehicle-list" class="vehicle-list"></div>
+    </section>
+
+    <section class="flow-card card panel" aria-labelledby="requirement-title">
+      <div class="section-head">
+        <div>
+          <span class="step-pill">2</span>
+          <h2 id="requirement-title">Charging Requirement</h2>
+        </div>
+        <span class="muted small">Simple estimate based on battery size</span>
+      </div>
+      <div class="form-grid compact-form">
+        <div class="field">
+          <label for="soc-current">Current battery SOC (%)</label>
+          <input id="soc-current" type="number" min="0" max="100" value="30">
+        </div>
+        <div class="field">
+          <label for="soc-target">Target battery SOC (%)</label>
+          <input id="soc-target" type="number" min="1" max="100" value="80">
+        </div>
+        <div class="field">
+          <label for="charger-type">Preferred charger</label>
+          <select id="charger-type"></select>
+        </div>
+        <div class="field">
+          <label for="booking-date">Date</label>
+          <input id="booking-date" type="date">
+        </div>
+      </div>
+      <div class="result-grid">
+        <div class="result-tile"><span>Required energy</span><strong id="required-energy">-</strong></div>
+        <div class="result-tile"><span>Estimated duration</span><strong id="estimated-duration">-</strong></div>
+      </div>
+    </section>
+
+    <section class="recommend-card card panel" aria-labelledby="recommend-title">
+      <div>
+        <span class="step-pill">3</span>
+        <h2 id="recommend-title">Smart Charging Recommendation</h2>
+      </div>
+      <div class="recommend-box">
+        <div>
+          <p class="muted small">Recommended Charging Time</p>
+          <strong id="recommended-time">Finding best time...</strong>
+        </div>
+        <button class="btn solar" type="button" id="use-recommendation">Use recommended slot</button>
+      </div>
+      <div class="reason-list">
+        <span>Lower electricity tariff</span>
+        <span>Lower station demand</span>
+        <span>Better renewable energy availability</span>
+      </div>
+    </section>
+
+    <section class="flow-card card panel" aria-labelledby="slot-title">
+      <div class="section-head">
+        <div>
+          <span class="step-pill">4</span>
+          <h2 id="slot-title">Charging Slot Selection</h2>
+        </div>
+        <div class="slot-legend" aria-label="Slot legend">
+          <span><i class="legend-dot available"></i>Available</span>
+          <span><i class="legend-dot selected"></i>Selected</span>
+          <span><i class="legend-dot unavailable"></i>Unavailable</span>
+          <span><i class="legend-dot peak"></i>Peak price</span>
+        </div>
+      </div>
+      <div id="slot-grid" class="slot-grid"></div>
+    </section>
+
+    <section class="booking-columns">
+      <div class="card panel" aria-labelledby="summary-title">
+        <div class="section-head">
+          <div>
+            <span class="step-pill">5</span>
+            <h2 id="summary-title">Booking Summary</h2>
+          </div>
+        </div>
+        <div id="booking-summary" class="summary-list"></div>
+        <button class="btn full" type="button" id="confirm-booking">Confirm Booking</button>
+      </div>
+
+      <div class="card panel" aria-labelledby="recent-title">
+        <div class="section-head">
+          <div>
+            <h2 id="recent-title">Recent Bookings</h2>
+            <p class="muted small">Your latest reservation activity</p>
+          </div>
+          <a class="btn secondary" href="/bookings">View All Bookings</a>
+        </div>
+        <div id="recent-bookings" class="list"></div>
+      </div>
+    </section>
+  </div>
+</main>

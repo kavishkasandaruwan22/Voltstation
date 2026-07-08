@@ -1,0 +1,43 @@
+<main class="page">
+  <div class="wrap slim-wrap">
+    <section class="page-title">
+      <p class="eyebrow">My Profile</p>
+      <h1>Account and vehicle details</h1>
+      <p class="muted">Update the information used to estimate charging needs and prepare bookings.</p>
+    </section>
+
+    <section class="grid grid-2 section">
+      <div class="card panel profile-card">
+        <div class="profile-avatar" id="profile-avatar">VS</div>
+        <h2>Personal Information</h2>
+        <div class="form-grid one-col">
+          <div class="field"><label for="profile-name">Name</label><input id="profile-name" type="text"></div>
+          <div class="field"><label for="profile-email">Email</label><input id="profile-email" type="email"></div>
+          <div class="field"><label for="profile-phone">Phone number</label><input id="profile-phone" type="tel" placeholder="+94 77 123 4567"></div>
+        </div>
+      </div>
+
+      <div class="card panel profile-card" id="vehicles">
+        <h2>Vehicle Information</h2>
+        <div class="form-grid one-col">
+          <div class="field"><label for="vehicle-brand">Brand</label><input id="vehicle-brand" type="text"></div>
+          <div class="field"><label for="vehicle-model">Model</label><input id="vehicle-model" type="text"></div>
+          <div class="field"><label for="vehicle-battery">Battery capacity (kWh)</label><input id="vehicle-battery" type="number" min="1"></div>
+          <div class="field"><label for="vehicle-connector">Connector type</label><input id="vehicle-connector" type="text" value="CCS2"></div>
+          <div class="field"><label for="vehicle-reg">Registration number</label><input id="vehicle-reg" type="text" placeholder="CAB-1234"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section card panel">
+      <div class="section-head">
+        <div>
+          <h2>Edit details</h2>
+          <p class="muted small">Profile editing is prepared here for the account information used by bookings.</p>
+        </div>
+        <button class="btn" type="button" id="save-profile">Save Changes</button>
+      </div>
+      <p class="muted" id="profile-save-note">Changes are kept on this device unless profile update support is enabled on the server.</p>
+    </section>
+  </div>
+</main>
