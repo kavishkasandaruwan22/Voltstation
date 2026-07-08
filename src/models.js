@@ -58,6 +58,8 @@ const BookingSchema = new Schema({
   type: String,
   startSlot: Number,
   slotCount: Number,
+  startTime: String,
+  endTime: String,
   energyKwh: Number,
   lockedPrices: [Number],     // Rs/kWh locked per slot at booking time
   totalCost: Number,

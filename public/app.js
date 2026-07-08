@@ -315,10 +315,19 @@ function estimateCost(row, start, count) {
   return Math.max(0, total);
 }
 
+function isPastSlot(time, date = availability?.date || currentDate) {
+  if (!time || !date) return false;
+  const [hour, minute] = String(time).split(":").map(Number);
+  const slotDate = new Date(`${date}T00:00:00`);
+  slotDate.setHours(hour || 0, minute || 0, 0, 0);
+  return slotDate <= new Date();
+}
+
 function isBlockAvailable(row, start, count) {
   if (!row || start + count > row.cells.length) return false;
   for (let i = start; i < start + count; i++) {
-    if (row.cells[i]?.booked) return false;
+    const cell = row.cells[i];
+    if (!cell || cell.booked || isPastSlot(cell.time)) return false;
   }
   return true;
 }
@@ -427,9 +436,8 @@ function solarDiscountLine(rows) {
 
 function cellState(row, slot, count, discountLine) {
   const cell = row.cells[slot];
-  if (!cell) return "disabled";
+  if (!cell || isPastSlot(cell?.time)) return "disabled";
   if (cell.booked) return "booked";
-  if (!isBlockAvailable(row, slot, count)) return "disabled";
   const selected = state.selected?.bayId === row.bayId && slot >= state.selected.start && slot < state.selected.start + state.selected.count;
   if (selected) return "selected";
   if (Number(cell.price || 0) <= discountLine) return "solar";
@@ -441,6 +449,7 @@ function renderSlots() {
   if (!target || !availability?.grid) return;
   const type = selectedType();
   const count = slotCountFor(type);
+  const bayId = selectedBayId();
   const rows = availability.grid.filter((row) => row.type === type);
   const slots = slotCells();
   if (!rows.length || !slots.length) {
@@ -456,10 +465,12 @@ function renderSlots() {
     const rowSelected = selectedBayId() === row.bayId;
     html += `<div class="slot-table-row ${rowSelected ? "active-bay" : ""}" style="--slot-count: ${slots.length}"><div class="slot-bay-name">${bayDisplayName(row, rowIndex)}</div>`;
     slots.forEach(({ time, slot }) => {
-      const status = cellState(row, slot, count, discountLine);
-      const recommended = rec?.bayId === row.bayId && rec?.start === slot;
+      const lockedBay = row.bayId !== bayId;
+      const status = lockedBay ? "disabled" : cellState(row, slot, count, discountLine);
+      const recommended = !lockedBay && rec?.bayId === row.bayId && rec?.start === slot;
       const label = `${bayDisplayName(row, rowIndex)} ${time}`;
-      html += `<button type="button" class="slot-cell ${status} ${recommended ? "recommended" : ""}" data-bay="${row.bayId}" data-start="${slot}" aria-label="${label}" title="${label} - ${status}" ${status === "booked" || status === "disabled" ? "disabled" : ""}></button>`;
+      const title = lockedBay ? `${label} - select ${bayDisplayName(row, rowIndex)} above to book this bay` : `${label} - ${status}`;
+      html += `<button type="button" class="slot-cell ${status} ${lockedBay ? "locked-bay" : ""} ${recommended ? "recommended" : ""}" data-bay="${row.bayId}" data-start="${slot}" aria-label="${title}" title="${title}" ${status === "booked" || status === "disabled" || lockedBay ? "disabled" : ""}></button>`;
     });
     html += '</div>';
   });
@@ -473,6 +484,11 @@ function renderSlots() {
       if (state.selected?.bayId === bayId && state.selected?.start === start) {
         state.selected = null;
       } else {
+        const row = availability?.grid?.find((item) => item.bayId === bayId);
+        if (!isBlockAvailable(row, start, count)) {
+          showToast("Selected duration overlaps a booked or unavailable slot");
+          return;
+        }
         state.selected = { bayId, start, count, type };
       }
       renderRecommendation();

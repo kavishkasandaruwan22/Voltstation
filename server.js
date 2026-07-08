@@ -22,6 +22,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 const tomorrow = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 const hhmm = t => { const h = Math.floor(t), m = Math.round((t - h) * 60); return h + ":" + (m < 10 ? "0" + m : m); };
+const slotTime = (station, slot) => hhmm(station.openHour + slot * (station.slotMinutes / 60));
 const ACTIVE_BOOKING_STATUSES = ["booked", "charging"];
 const ACTIVE_BOOKING_MESSAGE = "You already have an active booking. Please cancel or complete your existing booking before making another reservation.";
 
@@ -194,9 +195,12 @@ app.get("/api/availability", A.requireAuth, async (req, res) => {
   if (!fc) return res.status(404).json({ error: "no forecast for " + date });
   const slots = P.buildSlots(station);
   const occPower = await occupancyPower(station, date, slots.length);
-  const occ = await Occupancy.find({ stationId: station._id, date });
-  const isBooked = (bayId, slot) => occ.some(o => o.bayId === bayId && o.slot === slot);
-  const grid = station.bays.map(b => ({
+  const bayId = req.query.bayId;
+  const occQuery = bayId ? { stationId: station._id, date, bayId } : { stationId: station._id, date };
+  const occ = await Occupancy.find(occQuery);
+  const isBooked = (targetBayId, slot) => occ.some(o => o.bayId === targetBayId && o.slot === slot);
+  const bays = bayId ? station.bays.filter(b => b.bayId === bayId) : station.bays;
+  const grid = bays.map(b => ({
     bayId: b.bayId, type: b.type, power: b.power,
     cells: slots.map((t, i) => ({
       slot: i, time: hhmm(t), booked: isBooked(b.bayId, i),
@@ -240,10 +244,12 @@ app.post("/api/bookings", A.requireAuth, async (req, res) => {
     try { await Occupancy.insertMany(occDocs, { ordered: true }); }
     catch (e) { await Occupancy.deleteMany({ bookingId }); return res.status(409).json({ error: "slot just taken - pick another" }); }
 
+    const startTime = slotTime(station, startSlot);
+    const endTime = slotTime(station, startSlot + q.slotCount);
     const booking = await Booking.create({
       _id: bookingId, stationId: station._id, date,
       userId: req.user.id, userName: req.user.name, bayId, type: bay.type,
-      startSlot, slotCount: q.slotCount, energyKwh: +energy.toFixed(2),
+      startSlot, slotCount: q.slotCount, startTime, endTime, energyKwh: +energy.toFixed(2),
       lockedPrices: q.lockedPrices, totalCost: q.totalCost
     });
     await expireNotificationsForSlot({ stationId: station._id, date, bayId, startSlot, slotCount: q.slotCount });

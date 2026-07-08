@@ -127,6 +127,7 @@ button { cursor: pointer; }
 .slot-cell.selected { background: var(--blue); border-color: var(--blue); box-shadow: inset 0 0 0 2px rgba(255,255,255,.34); }
 .slot-cell.booked { background: #f4d8cf; border-color: #d99b86; cursor: not-allowed; }
 .slot-cell.disabled { background: #ecefed; border-color: #d7ddd9; cursor: not-allowed; opacity: .82; }
+.slot-cell.locked-bay { opacity: .48; }
 .slot-cell.recommended:not(.selected):after { content: ""; position: absolute; inset: 5px; border: 2px solid var(--solar); border-radius: 6px; pointer-events: none; }
 .booking-columns { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: 18px; }
 .summary-list { display: flex; flex-direction: column; gap: 0; }
