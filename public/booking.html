@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VoltStation — Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F6F7F5;--panel:#FFF;--ink:#16221F;--muted:#6B756F;--primary:#0E4D52;--accent:#E8A33D;--accent-dark:#C9892B;--line:#E4E6E1;--line-2:#EEF0EC;--shadow:0 1px 2px rgba(20,34,31,.04),0 8px 24px rgba(20,34,31,.06)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif}
+.wrap{max-width:1120px;margin:0 auto;padding:24px}
+.app-header{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);backdrop-filter:blur(14px)}
+.topbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:18px 24px}
+.brand{display:flex;align-items:center;gap:10px;font-family:"Space Grotesk";font-weight:700;font-size:18px;color:var(--primary)}
+.brand-mark{width:28px;height:28px;border-radius:8px;background:linear-gradient(145deg,var(--primary),#0b3438);position:relative;box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
+.brand-mark:after{content:"";position:absolute;left:10px;top:5px;width:8px;height:16px;background:var(--accent);clip-path:polygon(48% 0,100% 0,58% 45%,100% 45%,28% 100%,45% 55%,0 55%)}
+.nav{display:flex;flex-wrap:wrap;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px}
+.nav a{color:var(--muted);text-decoration:none;font-weight:700;font-size:13px;padding:8px 12px;border-radius:999px}
+.nav a.active, .nav a:hover{background:#f8faf9;color:var(--primary)}
+.header-actions{display:flex;align-items:center;gap:10px}
+.icon-btn{width:38px;height:38px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--primary);display:grid;place-items:center;font-weight:800;position:relative;transition:.18s}
+.icon-btn:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+.notif-dot{position:absolute;top:6px;right:6px;width:9px;height:9px;border-radius:50%;background:var(--accent);display:none}
+.notif-dot.show{display:block}
+.profile-chip{display:flex;align-items:center;gap:9px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 11px 5px 5px;min-width:0}
+.avatar{width:30px;height:30px;border-radius:999px;background:linear-gradient(145deg,var(--primary),var(--accent));color:#fff;display:grid;place-items:center;font-weight:800;font-size:12px}
+.profile-chip span{font-size:13px;font-weight:700;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+.logout{border:1px solid var(--line);background:#fff;border-radius:999px;padding:9px 13px;font-size:13px;font-weight:700;color:var(--muted)}
+.logout:hover{color:var(--accent-dark)}
+.hero{display:grid;gap:14px;padding:26px 0 18px}
+.hero h1{font-size:28px;margin:0}
+.hero p{color:var(--muted);max-width:760px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:22px;margin-bottom:20px}
+.steps{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.step-pill{padding:10px 14px;border-radius:999px;font-size:13px;font-weight:600;color:var(--muted);background:#F5F5F3}
+.step-pill.active{background:var(--primary);color:#fff}
+.grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:20px}
+@media(max-width:920px){.grid2{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;margin-bottom:14px}
+.field label{font-size:13px;color:var(--muted);margin-bottom:7px;font-weight:600}
+.field input,.field select{padding:11px 12px;border:1px solid var(--line);border-radius:12px;font-size:15px;background:#fff}
+.inline-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.card-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.card-title h2{font-size:16px;margin:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:14px;padding:12px 18px;font-family:"Space Grotesk";font-size:15px;font-weight:700;cursor:pointer;background:var(--accent);color:#3A2A06}
+.btn.secondary{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.disabled{opacity:.55;cursor:not-allowed}
+.grid-cells{overflow-x:auto}
+.table{width:100%;border-collapse:separate;border-spacing:4px}
+.table th{text-align:left;font-size:12px;color:var(--muted);padding:8px 10px}
+.table td{padding:10px;border-radius:12px;background:#fff;border:1px solid var(--line)}
+.cell{width:30px;height:30px;border-radius:8px;cursor:pointer;border:1px solid rgba(0,0,0,.08);transition:.18s}
+.cell:hover{transform:scale(1.05)}
+.cell.booked{background:#F2F0EA;cursor:not-allowed;opacity:.6}
+.cell.selected{background:var(--primary);color:#fff;box-shadow:0 0 0 2px rgba(14,77,82,.12)}
+.cell.disabled{background:#F8F7F4;cursor:not-allowed;opacity:.5}
+.notify{background:#E8F4FF;border:1px solid #D6EAF8;color:#0E4D52;border-radius:14px;padding:14px;margin-bottom:18px}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.stat-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}
+.stat-title{font-size:12px;color:var(--muted);margin-bottom:8px}
+.stat-value{font-size:22px;font-weight:700}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 18px;border-radius:14px;opacity:0;transition:.25s;pointer-events:none;z-index:10}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<header class="app-header"><div class="wrap topbar"><a class="brand" href="index.html" aria-label="VoltStation home"><span class="brand-mark"></span><span>VoltStation</span></a><nav class="nav" aria-label="Primary"><a href="index.html">Home</a><a href="booking.html" class="active">Booking</a><a href="details.html">Pricing</a><a href="profile.html">Profile</a></nav><div class="header-actions"><div><button class="icon-btn" id="bellBtn" aria-label="Notifications" title="Notifications"><span id="bellDot" class="notif-dot"></span>!</button></div><a class="profile-chip" href="profile.html" title="Profile"><span class="avatar" id="avatar">VS</span><span id="uname">User</span></a><button class="logout" id="logout">Log out</button></div></div></header>
+<div class="wrap">
+  <div class="hero"><h1>Book your EV charge in three smart steps</h1><p>Choose your vehicle, pick a charging slot, and confirm a clear, solar-aware booking that fits your schedule.</p></div>
+  <div class="card notify">Your profile data is used to auto-populate vehicle details. Add more than one vehicle via your Profile page.</div>
+  <div class="card steps"><span class="step-pill active" data-step="1">01 Your Vehicle</span><span class="step-pill" data-step="2">02 Pick Your Start Slot</span><span class="step-pill" data-step="3">03 Your Booking</span></div>
+  <div class="grid2">
+    <div>
+      <div class="card" id="step1"><div class="card-title"><h2>Step 1 — Your Vehicle</h2></div>
+        <div class="field"><label>Select saved vehicle</label><select id="vehicleSelect"></select></div>
+        <div class="inline-grid"><div class="field"><label>Vehicle Type</label><select id="vehicleType"><option value="AC">AC</option><option value="DC">DC</option></select></div><div class="field"><label>Connector Type</label><input id="connector" placeholder="Type" /></div></div>
+        <div class="inline-grid"><div class="field"><label>Brand</label><input id="brand" placeholder="Brand" /></div><div class="field"><label>Model</label><input id="model" placeholder="Model" /></div></div>
+        <div class="inline-grid"><div class="field"><label>Battery Capacity (kWh)</label><input id="batteryCapacity" type="number" min="1" step="1" /></div><div class="field"><label>Target %</label><input id="targetSoc" type="number" min="0" max="100" value="80" /></div></div>
+        <div class="field"><label>Current Battery %</label><input id="currentSoc" type="number" min="0" max="100" value="30" /></div>
+        <button class="btn" id="toStep2">Continue to slot selection</button>
+      </div>
+      <div class="card" id="step2" style="display:none"><div class="card-title"><h2>Step 2 — Pick Your Start Slot</h2><button class="btn secondary" id="backToStep1">Edit Vehicle</button></div>
+        <div class="inline-grid"><div class="field"><label>Charge date</label><input id="chargeDate" type="date" /></div><div class="field"><label>Selected station</label><input id="stationName" disabled /></div></div>
+        <div class="field"><label>Estimated duration</label><input id="duration" disabled /></div>
+        <div class="grid-cells"><div id="slotGrid">Loading availability…</div></div>
+        <button class="btn" id="toStep3">Continue to summary</button>
+      </div>
+      <div class="card" id="step3" style="display:none"><div class="card-title"><h2>Step 3 — Your Booking</h2><button class="btn secondary" id="backToStep2">Change slot</button></div>
+        <div class="field"><label>Selected vehicle</label><input id="reviewVehicle" disabled /></div>
+        <div class="field"><label>Charging station</label><input id="reviewStation" disabled /></div>
+        <div class="inline-grid"><div class="field"><label>Date</label><input id="reviewDate" disabled /></div><div class="field"><label>Time</label><input id="reviewTime" disabled /></div></div>
+        <div class="inline-grid"><div class="field"><label>Duration</label><input id="reviewDuration" disabled /></div><div class="field"><label>Estimated cost</label><input id="reviewCost" disabled /></div></div>
+        <button class="btn" id="confirmBooking">Confirm Booking</button>
+      </div>
+    </div>
+    <div>
+      <div class="card"><h2>Booking summary</h2><div class="stats"><div class="stat-card"><div class="stat-title">Next available slot</div><div class="stat-value" id="nextSlot">—</div></div><div class="stat-card"><div class="stat-title">Estimated kWh</div><div class="stat-value" id="summaryKwh">—</div></div><div class="stat-card"><div class="stat-title">Slots needed</div><div class="stat-value" id="summarySlots">—</div></div><div class="stat-card"><div class="stat-title">Solar pricing</div><div class="stat-value" id="summaryPrice">—</div></div></div></div>
+      <div class="card"><h2>Your active booking</h2><div id="activeBooking">Loading…</div></div>
+      <div class="card"><h2>Quick action</h2><p class="muted">Need a faster booking? Use the profile vehicles and slot grid to choose the best fit.</p><button class="btn" id="goToMyBookings">My Bookings</button></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const token = localStorage.getItem('vs_token'); if(!token) location.href='login.html';
+const g=id=>document.getElementById(id);
+const state={station:null,me:null,vehicles:[],date:'',selected:{vehicle:null,slot:null,bay:null,startSlot:0,slotCount:0,cost:0}};
+const today=new Date(); today.setDate(today.getDate()+1); g('chargeDate').value = today.toISOString().slice(0,10);
+function toast(msg){const t=g('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2600);}
+function authFetch(url,opts={}){opts.headers=Object.assign({},opts.headers,{Authorization:'Bearer '+token});return fetch(url,opts).then(async r=>{if(r.status===401){localStorage.clear();location.href='login.html';throw new Error('unauth')}return r});}
+function bayPower(type){const b=state.station.bays.find(x=>x.type===type);return b?b.power:(type==='DC'?30:7.4);}
+function energyNeeded(){const soc0=+g('currentSoc').value; const socT=+g('targetSoc').value; const cap=+g('batteryCapacity').value; return Math.max(0,(socT-soc0)/100*cap);}
+function slotsNeeded(type,energy){const perSlot=bayPower(type)*state.station.eta*(state.station.slotMinutes/60);return Math.max(1,Math.ceil(energy/perSlot));}
+function updateSummary(){const energy=energyNeeded();const type=g('vehicleType').value;const n=slotsNeeded(type,energy);g('duration').value=n*state.station.slotMinutes+' min';g('summaryKwh').textContent=energy.toFixed(1)+' kWh';g('summarySlots').textContent=n;g('summaryPrice').textContent='—';}
+function renderStep(step){['step1','step2','step3'].forEach(id=>g(id).style.display=id===step?'block':'none');document.querySelectorAll('.step-pill').forEach(p=>p.classList.toggle('active',p.dataset.step===step.slice(4)));}
+function loadVehicles(){const select=g('vehicleSelect');select.innerHTML='<option value="">Use manual fields</option>'+state.vehicles.map(v=>`<option value="${v._id}">${v.brand} ${v.model} ${v.year||''}</option>`).join('');}
+function setVehicle(v){if(!v){g('brand').value='';g('model').value='';g('batteryCapacity').value='';g('connector').value='';return;}g('vehicleType').value=v.type||'AC';g('brand').value=v.brand||'';g('model').value=v.model||'';g('batteryCapacity').value=v.batteryKwh||'';g('connector').value=v.connector||'';}
+function buildGrid(avail){const rows=avail.grid; const html=['<table class="table"><tr><th>Bay</th>'+avail.slotTimes.map(t=>`<th>${t}</th>`).join('')+'</tr>'];rows.forEach((row,bi)=>{html.push('<tr><td>'+row.bayId+'</td>'+row.cells.map(c=>{const booked=c.booked?' booked':'';const sel=state.selected.bay===row.bayId&&state.selected.startSlot<=c.slot&&c.slot<state.selected.startSlot+state.selected.slotCount?' selected':'';const disabled=(!booked && row.type!==g('vehicleType').value)?' disabled':'';return`<td><div class="cell${booked? ' booked':''}${sel}${disabled}" data-bi="${bi}" data-si="${c.slot}" title="${row.bayId} ${c.time} Rs ${c.price.toFixed(0)}" style="background:${booked?'#F2F0EA':(disabled?'#F8F7F4':'#fff')}">${c.booked? '×': c.slot+1}</div></td>`}).join('')+'</tr>');});html.push('</table>');g('slotGrid').innerHTML=html.join('');document.querySelectorAll('.cell').forEach(cell=>{if(cell.classList.contains('booked')||cell.classList.contains('disabled'))return;cell.onclick=()=>selectSlot(+cell.dataset.bi,+cell.dataset.si,avail);});}
+function selectSlot(bi, slot, avail){const row=avail.grid[bi];if(row.type!==g('vehicleType').value){toast('Choose a slot matching your vehicle type');return;}const energy=energyNeeded();const n=slotsNeeded(row.type,energy);if(slot+n>row.cells.length){toast('Not enough slots before closing');return;}for(let i=slot;i<slot+n;i++){if(row.cells[i].booked){toast('Slot overlaps a booked interval');return;}}state.selected={bay:row.bayId,startSlot:slot,slotCount:n,cost:row.cells.slice(slot,slot+n).reduce((sum,c)=>sum+c.price,0)*energy/Math.max(1,n)};g('reviewTime').value=row.cells[slot].time+' — '+row.cells[Math.min(slot+n-1,row.cells.length-1)].time;g('nextSlot').textContent=`${row.bayId} @ ${row.cells[slot].time}`;g('summaryPrice').textContent='Rs '+state.selected.cost.toFixed(0);buildGrid(avail);} 
+async function loadAvailability(){const date=g('chargeDate').value; try{const r=await authFetch('/api/availability?date='+encodeURIComponent(date));const avail=await r.json();buildGrid(avail);return avail;}catch(e){g('slotGrid').textContent='Could not load availability.';return null;}}
+async function loadProfile(){const me=(await (await authFetch('/api/auth/me')).json()).user;state.me=me;g('stationName').value='Loading...';};
+async function loadStation(){state.station=await (await authFetch('/api/station')).json();g('stationName').value=state.station.name; updateSummary();}
+async function loadUserVehicles(){const data=await (await authFetch('/api/vehicles')).json();state.vehicles=data.vehicles||[];loadVehicles();}
+async function loadActiveBooking(){const list=await (await authFetch('/api/bookings')).json();const active=list.find(b=>['booked','charging'].includes(b.status));if(active){g('activeBooking').innerHTML=`<div style="padding:14px;border:1px solid var(--line);border-radius:14px"><strong>${active.bayId}</strong><div class="small">${active.date} · ${active.status}</div><div class="small">Rs ${active.totalCost.toFixed(0)} · ${active.energyKwh.toFixed(1)} kWh</div></div>`;} else g('activeBooking').innerHTML='<div class="small">No active bookings.</div>';} 
+function setReview(){g('reviewVehicle').value = g('brand').value+' '+g('model').value; g('reviewStation').value = state.station.name; g('reviewDate').value=g('chargeDate').value; g('reviewDuration').value=state.selected.slotCount*state.station.slotMinutes+' min'; g('reviewCost').value='Rs '+state.selected.cost.toFixed(0);} 
+function setStep(step){renderStep(step); if(step==='step2'){loadAvailability().then(av=>{if(av){g('duration').value=slotsNeeded(g('vehicleType').value,energyNeeded())*state.station.slotMinutes+' min';}});} if(step==='step3'){setReview();}}
+
+g('vehicleSelect').onchange=()=>{const sel=state.vehicles.find(v=>v._id===g('vehicleSelect').value);setVehicle(sel);};
+['vehicleType','currentSoc','targetSoc','batteryCapacity','connector','brand','model'].forEach(id=>g(id).addEventListener('input',()=>{updateSummary();}));
+g('toStep2').onclick=()=>{if(!g('brand').value||!g('model').value||!g('batteryCapacity').value){toast('Enter your vehicle details');return;} setStep('step2');};
+g('backToStep1').onclick=()=>setStep('step1');
+g('toStep3').onclick=()=>{if(!state.selected.bay){toast('Pick a start slot first');return;} setStep('step3');};
+g('backToStep2').onclick=()=>setStep('step2');
+g('confirmBooking').onclick=async()=>{if(!state.selected.bay){toast('Select a slot before confirming');return;} const body={bayId:state.selected.bay,startSlot:state.selected.startSlot,batteryKwh:+g('batteryCapacity').value,soc0:+g('currentSoc').value,socT:+g('targetSoc').value}; try{const r=await authFetch('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json(); if(!r.ok){toast(d.error||'Booking failed'); return;} toast('Booking confirmed'); window.location.href='mybookings.html';}catch(e){console.error(e);toast('Could not create booking');}};
+g('chargeDate').onchange=()=>loadAvailability();
+g('goToMyBookings').onclick=()=>location.href='mybookings.html';
+document.getElementById('logout').onclick=()=>{if(confirm('Logout?')){localStorage.clear();location.href='login.html';}};
+(async()=>{await loadStation();await loadProfile();await loadUserVehicles();await loadActiveBooking();updateSummary();setStep('step1');})();
+</script>
+</body>
+</html>

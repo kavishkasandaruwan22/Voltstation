@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VoltStation — Profile</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F6F7F5;--panel:#FFF;--ink:#16221F;--muted:#6B756F;--primary:#0E4D52;--solar:#E8A33D;--line:#E4E6E1}
+body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink)}.wrap{max-width:1000px;margin:0 auto;padding:24px}
+.header{display:flex;justify-content:space-between;align-items:center;padding:8px 0;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-family:Space Grotesk;font-weight:700;font-size:18px;color:var(--primary)}
+.spark{width:28px;height:28px;border-radius:8px;background:radial-gradient(circle at 50% 35%,var(--solar),#C9892B)}
+.nav-links{display:flex;gap:10px;flex-wrap:wrap}
+.nav-links a{color:var(--primary);text-decoration:none;font-weight:600}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:1fr 360px;gap:18px}
+@media(max-width:920px){.grid{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;margin-bottom:8px}
+.field label{font-size:13px;color:var(--muted);margin-bottom:6px}
+.field input{padding:9px 10px;border:1px solid var(--line);border-radius:8px}
+.btn{background:var(--primary);color:#fff;border:none;padding:10px 12px;border-radius:8px;cursor:pointer}
+.small{font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header"><div style="display:flex;align-items:center;gap:10px"><div class="brand"><div class="spark"></div>VoltStation</div></div><div class="nav-links"><a href="index.html">Home</a><a href="booking.html">Booking</a><a href="details.html">Pricing</a><a href="profile.html">Profile</a></div></div>
+
+  <h1 style="font-family:Space Grotesk;margin-bottom:8px">My Profile</h1>
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h3>Personal information</h3>
+        <div class="field"><label>Full name</label><input id="name"></div>
+        <div class="field"><label>Email</label><input id="email" disabled></div>
+        <div class="field"><label>Phone</label><input id="phone"></div>
+        <div style="display:flex;gap:8px"><button class="btn" id="save">Save changes</button><button class="btn" id="chgpass" style="background:#C9892B">Change password</button></div>
+      </div>
+
+      <div class="card">
+        <h3>Vehicles</h3>
+        <div id="vehicles"></div>
+        <div style="margin-top:10px;border-top:1px dashed var(--line);padding-top:10px">
+          <h4 style="margin:6px 0">Add vehicle</h4>
+          <div class="field"><label>Brand</label><input id="v_brand"></div>
+          <div class="field"><label>Model</label><input id="v_model"></div>
+          <div class="field"><label>Year</label><input id="v_year" type="number"></div>
+          <div class="field"><label>Battery (kWh)</label><input id="v_batt" type="number"></div>
+          <div style="display:flex;gap:8px"><button class="btn" id="addVehicle">Add Vehicle</button><button class="btn" id="delVehicle" style="background:#B6552F">Delete Selected</button></div>
+        </div>
+      </div>
+
+    </div>
+    <aside>
+      <div class="card"><h3>Booking Summary</h3><div id="summary"><div class="small">Total bookings: <b id="totalBookings">—</b></div><div class="small">Upcoming: <b id="upcoming">—</b></div><div class="small">Completed: <b id="completed">—</b></div><div class="small">Cancelled: <b id="cancelled">—</b></div></div></div>
+      <div class="card"><h3>Booking History</h3><div id="history"><div class="small">Loading…</div></div></div>
+    </aside>
+  </div>
+</div>
+<script>
+const token = localStorage.getItem("vs_token"); if(!token) location.href = "login.html";
+const g=id=>document.getElementById(id);
+async function af(url,opts={}){opts.headers=Object.assign({},opts.headers,{Authorization:"Bearer "+token});const r=await fetch(url,opts);if(r.status===401){localStorage.clear();location.href='login.html';throw new Error('unauth');}return r}
+async function load(){
+  const me = await (await af('/api/auth/me')).json();
+  g('name').value = me.user.name||''; g('email').value = me.user.email||''; g('phone').value = me.user.phone||'';
+  // vehicles
+  const vdata = await (await af('/api/vehicles')).json(); renderVehicles(vdata.vehicles||[]);
+  // bookings
+  const list = await (await af('/api/bookings')).json();
+  const total = list.length, upcoming = list.filter(b=>b.status==='booked' || b.status==='charging').length, completed = list.filter(b=>b.status==='done').length, cancelled = list.filter(b=>b.status==='cancelled').length;
+  g('totalBookings').textContent = total; g('upcoming').textContent = upcoming; g('completed').textContent = completed; g('cancelled').textContent = cancelled;
+  const hist = list.map(b=>`<div style="padding:8px 0;border-bottom:1px dashed #EEE"><div><b>${b.bayId}</b> · ${b.date} · ${b.energyKwh} kWh · Rs ${b.totalCost.toFixed(0)}</div><div class="small">Status: ${b.status} · ID: ${String(b._id).slice(-6)}</div></div>`).join('')||'<div class="small">No bookings</div>';
+  g('history').innerHTML = hist;
+}
+function renderVehicles(arr){ if(!arr.length) { g('vehicles').innerHTML='<div class="small">No vehicles yet.</div>'; return; } g('vehicles').innerHTML = arr.map(v=>`<div style="padding:8px;border-bottom:1px solid #F0F0F0"><input type=radio name=veh value='${v._id}' style='margin-right:8px'> <b>${v.brand||''} ${v.model||''}</b><div class="small">${v.year||''} · ${v.batteryKwh||''} kWh · ${v.connector||''} · Reg: ${v.registration||''}</div></div>`).join(''); }
+
+document.getElementById('save').onclick = async ()=>{ const body = { name: g('name').value, phone: g('phone').value }; const r = await af('/api/profile',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const d = await r.json(); alert('Saved'); }
+
+document.getElementById('addVehicle').onclick = async ()=>{ const body = { brand: g('v_brand').value, model: g('v_model').value, year: +g('v_year').value||undefined, batteryKwh: +g('v_batt').value||undefined }; const r = await af('/api/vehicles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const d = await r.json(); await load(); }
+
+document.getElementById('delVehicle').onclick = async ()=>{ const sel = document.querySelector('input[name=veh]:checked'); if(!sel){ alert('Pick a vehicle to delete'); return; } if(!confirm('Delete vehicle?')) return; await af('/api/vehicles/'+sel.value,{method:'DELETE'}); await load(); }
+
+load().catch(e=>console.error(e));
+</script>
+</body>
+</html>

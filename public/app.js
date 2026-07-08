@@ -450,10 +450,10 @@ function renderSlots() {
   const type = selectedType();
   const count = slotCountFor(type);
   const bayId = selectedBayId();
-  const rows = availability.grid.filter((row) => row.type === type);
+  const rows = availability.grid;
   const slots = slotCells();
   if (!rows.length || !slots.length) {
-    target.innerHTML = '<div class="empty">No slots available for this charger type.</div>';
+    target.innerHTML = '<div class="empty">No charging slots available.</div>';
     return;
   }
   const discountLine = solarDiscountLine(rows);
@@ -466,15 +466,15 @@ function renderSlots() {
     html += `<div class="slot-table-row ${rowSelected ? "active-bay" : ""}" style="--slot-count: ${slots.length}"><div class="slot-bay-name">${bayDisplayName(row, rowIndex)}</div>`;
     slots.forEach(({ time, slot }) => {
       const lockedBay = row.bayId !== bayId;
-      const status = lockedBay ? "disabled" : cellState(row, slot, count, discountLine);
+      const status = cellState(row, slot, count, discountLine);
       const recommended = !lockedBay && rec?.bayId === row.bayId && rec?.start === slot;
       const label = `${bayDisplayName(row, rowIndex)} ${time}`;
-      const title = lockedBay ? `${label} - select ${bayDisplayName(row, rowIndex)} above to book this bay` : `${label} - ${status}`;
-      html += `<button type="button" class="slot-cell ${status} ${lockedBay ? "locked-bay" : ""} ${recommended ? "recommended" : ""}" data-bay="${row.bayId}" data-start="${slot}" aria-label="${title}" title="${title}" ${status === "booked" || status === "disabled" || lockedBay ? "disabled" : ""}></button>`;
+      const title = lockedBay && status !== "booked" ? `${label} - select ${bayDisplayName(row, rowIndex)} above to book this bay` : `${label} - ${status}`;
+      html += `<button type="button" class="slot-cell ${status} ${lockedBay && status !== "booked" ? "locked-bay" : ""} ${recommended ? "recommended" : ""}" data-bay="${row.bayId}" data-start="${slot}" aria-label="${title}" title="${title}" ${status === "booked" || status === "disabled" || lockedBay ? "disabled" : ""}></button>`;
     });
     html += '</div>';
   });
-  target.innerHTML = html || '<div class="empty">No slots available for this charger type.</div>';
+  target.innerHTML = html || '<div class="empty">No charging slots available.</div>';
   target.querySelectorAll(".slot-cell.available, .slot-cell.solar, .slot-cell.selected").forEach((button) => {
     button.addEventListener("click", () => {
       const bayId = button.dataset.bay;
