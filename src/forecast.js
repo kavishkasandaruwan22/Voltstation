@@ -40,6 +40,9 @@ async function buildForecast(station) {
     if (arr) { load = arr; loadSrc = "csv"; break; }
   }
   if (!load) load = modelLoad(station);
+  if (pv.length !== load.length) {
+    throw new Error(`forecast slot mismatch: pv=${pv.length}, load=${load.length}, slotMinutes=${station.slotMinutes}`);
+  }
 
   return { pv, load, source, loadSrc };
 }

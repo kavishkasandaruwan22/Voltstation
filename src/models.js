@@ -11,7 +11,7 @@ const StationSchema = new Schema({
   loss: { type: Number, default: 14 },
   openHour: { type: Number, default: 6.5 },
   closeHour: { type: Number, default: 18.5 },
-  slotMinutes: { type: Number, default: 30 },
+  slotMinutes: { type: Number, default: 15 },
   bays: [{ bayId: String, type: { type: String, enum: ["AC", "DC"] }, power: Number }],
   tariff: {
     importAC: { type: Number, default: 70 },

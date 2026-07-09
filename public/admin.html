@@ -225,7 +225,7 @@ async function saveTariff(e){
   fillTariffForm();
   renderStationConfig();
   await Promise.all([loadBookings(), loadSolarGrid()]);
-  toast("Tariff changes saved");
+  toast("Settings saved and forecast rebuilt");
 }
 g("tariffForm").addEventListener("submit", saveTariff);
 

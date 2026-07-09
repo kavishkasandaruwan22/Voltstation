@@ -26,12 +26,24 @@ function modelLoad(station) {
 }
 
 // Parse "time,load_kW" CSV and interpolate onto the station's slot grid.
+// If the CSV header is load_kVA, convert to kW using BUILDING_LOAD_POWER_FACTOR.
 function parseLoadCSV(text, station) {
+  const lines = text.trim().split(/\r?\n/).filter(Boolean);
+  if (!lines.length) return null;
+
+  const header = lines[0].split(",").map(h => h.trim().toLowerCase());
+  const timeIndex = header.indexOf("time");
+  const loadIndex = header.findIndex(h => h === "load_kw" || h === "load_kva" || h === "load");
+  const hasHeader = timeIndex !== -1 && loadIndex !== -1;
+  const valueIndex = hasHeader ? loadIndex : 1;
+  const powerFactor = Number(process.env.BUILDING_LOAD_POWER_FACTOR || 1);
+  const multiplier = hasHeader && header[valueIndex] === "load_kva" ? powerFactor : 1;
   const pts = [];
-  text.trim().split(/\r?\n/).forEach(line => {
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+  dataLines.forEach(line => {
     const p = line.split(",");
-    const m = /^(\d{1,2}):(\d{2})/.exec((p[0] || "").trim());
-    const v = parseFloat(p[1]);
+    const m = /^(\d{1,2}):(\d{2})/.exec((p[hasHeader ? timeIndex : 0] || "").trim());
+    const v = parseFloat(p[valueIndex]) * multiplier;
     if (m && !isNaN(v)) pts.push({ t: +m[1] + (+m[2]) / 60, v });
   });
   if (!pts.length) return null;

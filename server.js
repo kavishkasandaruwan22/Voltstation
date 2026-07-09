@@ -85,6 +85,17 @@ async function occupancyPower(station, date, nSlots) {
   return arr;
 }
 
+async function refreshTomorrowForecastFor(station) {
+  const date = tomorrow();
+  const { pv, load, source, loadSrc } = await buildForecast(station);
+  const forecast = await Forecast.findOneAndUpdate(
+    { stationId: station._id, date },
+    { stationId: station._id, date, pv, load, source },
+    { upsert: true, new: true }
+  );
+  return { date, source, loadSrc, slots: forecast.pv.length };
+}
+
 app.get("/api/ping", (_, res) => res.json({ ok: true }));
 
 // AUTH
@@ -126,18 +137,24 @@ app.get("/api/auth/me", A.requireAuth, async (req, res) => {
 // STATION CONFIG
 app.get("/api/station", A.requireAuth, async (_, res) => res.json(await getStation()));
 app.put("/api/station/:id", A.requireAdmin, async (req, res) => {
-  res.json(await Station.findByIdAndUpdate(req.params.id, req.body, { new: true }));
+  try {
+    const station = await Station.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true
+    }).lean();
+    if (!station) return res.status(404).json({ error: "station not found" });
+    await refreshTomorrowForecastFor(station);
+    res.json(station);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
 // rebuild tomorrow's forecast (admin)
 app.post("/api/forecast/refresh", A.requireAdmin, async (_, res) => {
   const station = await getStation();
-  const date = tomorrow();
-  const { pv, load, source, loadSrc } = await buildForecast(station);
-  const fc = await Forecast.findOneAndUpdate(
-    { stationId: station._id, date }, { stationId: station._id, date, pv, load, source },
-    { upsert: true, new: true });
-  res.json({ date, source, loadSrc, slots: fc.pv.length });
+  if (!station) return res.status(404).json({ error: "station not found" });
+  res.json(await refreshTomorrowForecastFor(station));
 });
 
 // PRICES & AVAILABILITY
