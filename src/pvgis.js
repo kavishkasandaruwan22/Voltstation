@@ -64,10 +64,17 @@ function parseLoadCSV(text, station) {
 
 // Real PVGIS: typical-year AC output → typical daily profile → per-slot kW.
 // NOTE: PVGIS gives historical/typical data, NOT a live forecast. Backend only.
+function lerpHourly(values, hour) {
+  const h0 = Math.max(0, Math.min(23, Math.floor(hour)));
+  const h1 = Math.min(23, h0 + 1);
+  const f = hour - h0;
+  return (values[h0] || 0) * (1 - f) + (values[h1] || 0) * f;
+}
+
 async function fetchPVGIS(station) {
   const url = `https://re.jrc.ec.europa.eu/api/v5_2/seriescalc` +
     `?lat=${station.lat}&lon=${station.lon}&peakpower=${station.pvKW}` +
-    `&loss=${station.loss}&angle=${station.tilt}&aspect=0&pvcalculation=1&outputformat=json`;
+    `&loss=${station.loss}&angle=${station.tilt}&aspect=${station.azimuth || 0}&pvcalculation=1&outputformat=json`;
   const res = await fetch(url);                 // Node 18+ has global fetch
   if (!res.ok) throw new Error("PVGIS HTTP " + res.status);
   const data = await res.json();
@@ -78,31 +85,46 @@ async function fetchPVGIS(station) {
   const hourlyKW = sum.map((x, h) => (cnt[h] ? (x / cnt[h]) / 1000 : 0));
   const slots = buildSlots(station), half = (station.slotMinutes / 60) / 2;
   return slots.map(s => {
-    const t = s + half, h0 = Math.floor(t), h1 = Math.min(23, h0 + 1), f = t - h0;
-    return +(hourlyKW[h0] * (1 - f) + hourlyKW[h1] * f).toFixed(3);
+    return +lerpHourly(hourlyKW, s + half).toFixed(3);
   });
 }
 
 
 // Real TOMORROW forecast via Open-Meteo (free, no API key). Converts forecast
-// solar radiation (GHI, W/m2) to PV power using the system size:  P = pvKW*(GHI/1000)*PR.
+// global tilted irradiance (W/m2 on the panel plane) to PV power. It accounts
+// for admin tilt/azimuth, system loss, performance ratio, and temperature derate.
 async function fetchOpenMeteo(station) {
+  const tilt = Number(station.tilt || 0);
+  const azimuth = Number(station.azimuth || 0);
   const url = `https://api.open-meteo.com/v1/forecast` +
     `?latitude=${station.lat}&longitude=${station.lon}` +
-    `&hourly=shortwave_radiation&forecast_days=2&timezone=auto`;
+    `&hourly=global_tilted_irradiance,temperature_2m&forecast_days=2&timezone=auto` +
+    `&tilt=${tilt}&azimuth=${azimuth}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Open-Meteo HTTP " + res.status);
   const data = await res.json();
   const times = data.hourly.time;
-  const ghi = data.hourly.shortwave_radiation;
+  const gti = data.hourly.global_tilted_irradiance;
+  const temp = data.hourly.temperature_2m;
   const tmr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-  const hourGHI = Array(24).fill(0);
-  times.forEach((t, i) => { if (t.slice(0, 10) === tmr) hourGHI[parseInt(t.slice(11, 13), 10)] = ghi[i] || 0; });
+  const hourGTI = Array(24).fill(0);
+  const hourTemp = Array(24).fill(25);
+  times.forEach((t, i) => {
+    if (t.slice(0, 10) !== tmr) return;
+    const hour = parseInt(t.slice(11, 13), 10);
+    hourGTI[hour] = Math.max(0, gti[i] || 0);
+    hourTemp[hour] = Number.isFinite(temp[i]) ? temp[i] : 25;
+  });
   const slots = buildSlots(station), half = (station.slotMinutes / 60) / 2;
+  const systemDerate = Math.max(0, Number(station.performanceRatio || 1) * (1 - Number(station.loss || 0) / 100));
+  const tempCoeff = -0.004; // typical crystalline silicon power coefficient per degree C
   return slots.map(s => {
-    const t = s + half, h0 = Math.floor(t), h1 = Math.min(23, h0 + 1), f = t - h0;
-    const g = hourGHI[h0] * (1 - f) + hourGHI[h1] * f;
-    return +(station.pvKW * (g / 1000) * station.performanceRatio).toFixed(3);
+    const hour = s + half;
+    const irradiance = lerpHourly(hourGTI, hour);
+    const ambientTemp = lerpHourly(hourTemp, hour);
+    const cellTemp = ambientTemp + (irradiance / 800) * 20;
+    const tempFactor = Math.max(0.75, Math.min(1.08, 1 + tempCoeff * (cellTemp - 25)));
+    return +(station.pvKW * (irradiance / 1000) * systemDerate * tempFactor).toFixed(3);
   });
 }
 

@@ -8,6 +8,7 @@ const StationSchema = new Schema({
   pvKW: Number,                 // PV system size (kWp)
   performanceRatio: { type: Number, default: 0.8 },
   tilt: { type: Number, default: 25 },
+  azimuth: { type: Number, default: 0 },
   loss: { type: Number, default: 14 },
   openHour: { type: Number, default: 6.5 },
   closeHour: { type: Number, default: 18.5 },

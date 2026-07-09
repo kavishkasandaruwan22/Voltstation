@@ -107,8 +107,9 @@
             <div class="fields">
               <div><label for="pvKW">PV System Capacity - kW</label><input id="pvKW" type="number" step="0.01" min="0"><div class="desc">Solar array size used by forecasts</div></div>
               <div><label for="performanceRatio">Performance Ratio</label><input id="performanceRatio" type="number" step="0.01" min="0"><div class="desc">PV conversion efficiency factor</div></div>
-              <div><label for="tilt">Panel Tilt - degrees</label><input id="tilt" type="number" step="0.1" min="0"><div class="desc">PVGIS angle setting</div></div>
-              <div><label for="loss">System Loss - %</label><input id="loss" type="number" step="0.1" min="0"><div class="desc">PVGIS loss setting</div></div>
+              <div><label for="tilt">Panel Tilt - degrees</label><input id="tilt" type="number" step="0.1" min="0"><div class="desc">Panel slope used by PVGIS/Open-Meteo</div></div>
+              <div><label for="azimuth">Panel Azimuth - degrees</label><input id="azimuth" type="number" step="1"><div class="desc">0=south, -90=east, 90=west</div></div>
+              <div><label for="loss">System Loss - %</label><input id="loss" type="number" step="0.1" min="0"><div class="desc">Cable/inverter/system loss</div></div>
             </div>
           </div>
         </div>
@@ -181,6 +182,7 @@ function fillTariffForm(){
   g("pvKW").value = station.pvKW;
   g("performanceRatio").value = station.performanceRatio;
   g("tilt").value = station.tilt;
+  g("azimuth").value = station.azimuth || 0;
   g("loss").value = station.loss;
 }
 
@@ -190,7 +192,8 @@ function renderStationConfig(){
     ["Location", station.lat + ", " + station.lon],
     ["PV size", station.pvKW + " kWp"],
     ["Performance ratio", station.performanceRatio],
-    ["Tilt / loss", station.tilt + " deg / " + station.loss + " %"],
+    ["Tilt / azimuth", station.tilt + " deg / " + (station.azimuth || 0) + " deg"],
+    ["System loss", station.loss + " %"],
     ["Bays", b.length + " (" + b.filter(x=>x.type==="AC").length + " AC, " + b.filter(x=>x.type==="DC").length + " DC)"],
     ["Bay IDs", b.map(x=>x.bayId + " " + x.type + " " + x.power + "kW").join(", ")],
     ["Hours", station.openHour + " - " + station.closeHour],
@@ -209,6 +212,7 @@ async function saveTariff(e){
     pvKW: val("pvKW"),
     performanceRatio: val("performanceRatio"),
     tilt: val("tilt"),
+    azimuth: val("azimuth"),
     loss: val("loss"),
     tariff: {
       importAC: val("importAC"),
