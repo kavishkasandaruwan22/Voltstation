@@ -84,7 +84,7 @@ button { cursor: pointer; }
 .booking-hero h1 { font-size: 34px; line-height: 1.1; margin: 6px 0 8px; }
 .upcoming-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 8px; }
 .upcoming-card strong { font-family: "Space Grotesk"; font-size: 18px; }
-.flow-card, .recommend-card { scroll-margin-top: 90px; }
+.flow-card, .recommend-card { scroll-margin-top: 90px; min-width: 0; }
 .vehicle-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .vehicle-card { text-align: left; border: 1px solid var(--line); background: #fff; border-radius: var(--radius); padding: 15px; display: grid; gap: 5px; }
 .vehicle-card.selected { border-color: var(--primary); box-shadow: inset 0 0 0 1px rgba(14,77,82,.14); }
@@ -113,14 +113,14 @@ button { cursor: pointer; }
 .legend-dot.solar { background: var(--solar); }
 .legend-dot.disabled { background: #c9d0cc; }
 .date-note { display: inline-flex; margin-top: 12px; color: var(--primary); background: #edf7f5; border: 1px solid #cfe7e3; border-radius: 8px; padding: 8px 11px; font-size: 13px; }
-.slot-table-wrap { overflow-x: auto; padding-bottom: 4px; }
+.slot-table-wrap { max-width: 100%; overflow-x: auto; padding-bottom: 4px; }
 .slot-table { width: max-content; min-width: 100%; display: grid; gap: 8px; }
-.slot-table-head, .slot-table-row { display: grid; grid-template-columns: 92px repeat(var(--slot-count, 13), 42px); gap: 8px; align-items: center; }
+.slot-table-head, .slot-table-row { display: grid; grid-template-columns: 92px repeat(var(--slot-count, 13), 30px); gap: 5px; align-items: center; }
 .slot-bay-head, .slot-bay-name { position: sticky; left: 0; z-index: 1; background: var(--panel); color: var(--muted); font-size: 12px; font-weight: 900; }
 .slot-bay-name { color: var(--ink); border-radius: 8px; padding: 7px 8px; }
 .slot-table-row.active-bay .slot-bay-name { color: var(--primary); background: #edf7f5; }
-.slot-hour { text-align: center; color: var(--muted); font-size: 12px; font-weight: 900; }
-.slot-cell { width: 42px; height: 38px; border-radius: 8px; border: 1px solid #cfd8d3; background: #fff; transition: .15s; position: relative; }
+.slot-hour { text-align: center; color: var(--muted); font-size: 10px; font-weight: 900; writing-mode: vertical-rl; transform: rotate(180deg); min-height: 42px; }
+.slot-cell { width: 30px; height: 32px; border-radius: 7px; border: 1px solid #cfd8d3; background: #fff; transition: .15s; position: relative; }
 .slot-cell:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(19,33,30,.09); border-color: var(--primary); }
 .slot-cell.available { background: #fff; }
 .slot-cell.solar { background: #fff6df; border-color: #efc979; }
