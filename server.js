@@ -22,6 +22,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 const tomorrow = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 const hhmm = t => { const h = Math.floor(t), m = Math.round((t - h) * 60); return h + ":" + (m < 10 ? "0" + m : m); };
+// slotHours derived from station.slotMinutes (single source of truth).
 const slotTime = (station, slot) => hhmm(station.openHour + slot * (station.slotMinutes / 60));
 const ACTIVE_BOOKING_STATUSES = ["booked", "charging"];
 const ACTIVE_BOOKING_MESSAGE = "You already have an active booking. Please cancel or complete your existing booking before making another reservation.";
@@ -169,7 +170,11 @@ app.get("/api/prices", A.requireAuth, async (req, res) => {
     priceAC: P.basePrice(station, fc.pv[i], fc.load[i], "AC"),
     priceDC: P.basePrice(station, fc.pv[i], fc.load[i], "DC")
   }));
-  res.json({ date, slots: out, flatAC: P.flatRate(station, "AC"), floorAC: P.floorRate(station, "AC") });
+  res.json({
+    date, slots: out,
+    flatAC: P.flatRate(station, "AC"), floorAC: P.floorRate(station, "AC"),
+    flatDC: P.flatRate(station, "DC"), floorDC: P.floorRate(station, "DC")
+  });
 });
 
 // Solar-vs-grid analysis per slot.
@@ -180,6 +185,7 @@ app.get("/api/analysis", A.requireAuth, async (req, res) => {
   if (!fc) return res.status(404).json({ error: "no forecast for " + date });
   const slots = P.buildSlots(station);
   const occPower = await occupancyPower(station, date, slots.length);
+  // slotHours derived from station.slotMinutes (single source of truth).
   const h = station.slotMinutes / 60;
   const rows = slots.map((t, i) => {
     const surplus = P.surplus(fc.pv[i], fc.load[i]);

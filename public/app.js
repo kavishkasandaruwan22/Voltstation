@@ -296,16 +296,20 @@ function chargerPower(type) {
   return Number(bay?.power || 7);
 }
 
+function slotHours() {
+  // slotHours derived from station.slotMinutes (single source of truth).
+  return Number(state.station.slotMinutes) / 60;
+}
+
 function slotCountFor(type) {
   const duration = energyNeeded() / Math.max(1, chargerPower(type) * Number(state.station?.eta || 1));
-  const slotHours = Number(state.station?.slotMinutes || 30) / 60;
-  return Math.max(1, Math.ceil(duration / slotHours));
+  return Math.max(1, Math.ceil(duration / slotHours()));
 }
 
 function estimateCost(row, start, count) {
   let remaining = energyNeeded();
   let total = 0;
-  const perSlot = chargerPower(row.type) * (Number(state.station?.slotMinutes || 30) / 60) * Number(state.station?.eta || 1);
+  const perSlot = chargerPower(row.type) * slotHours() * Number(state.station?.eta || 1);
   for (let i = 0; i < count; i++) {
     const cell = row.cells[start + i];
     const energy = Math.min(perSlot, remaining);
@@ -526,7 +530,7 @@ function renderBookingSummary() {
     <div class="summary-row"><span class="k">Charger type</span><span class="v">${row?.type || state.selected.type}</span></div>
     <div class="summary-row"><span class="k">Selected bay</span><span class="v">${row ? bayDisplayName(row, bayIndex) : state.selected.bayId}</span></div>
     <div class="summary-row"><span class="k">Charging time</span><span class="v">${timeAt(state.selected.start)} - ${timeAt(state.selected.start + state.selected.count)}</span></div>
-    <div class="summary-row"><span class="k">Duration</span><span class="v">${(state.selected.count * (Number(state.station?.slotMinutes || 30) / 60)).toFixed(1)} hours</span></div>
+    <div class="summary-row"><span class="k">Duration</span><span class="v">${(state.selected.count * slotHours()).toFixed(1)} hours</span></div>
     <div class="summary-row"><span class="k">Energy required</span><span class="v">${energyNeeded().toFixed(1)} kWh</span></div>
     <div class="summary-row"><span class="k">Estimated cost</span><span class="v">${money(cost)}</span></div>`;
   if (confirm) confirm.disabled = false;

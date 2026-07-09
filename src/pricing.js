@@ -1,11 +1,16 @@
-// ============================================================================
-//  THE ALGORITHM  (runs on the backend)
-//  Surplus  →  occupancy-aware price  →  booking cost.  Same equations as the
-//  booking prototype and the equations document.
-// ============================================================================
+// Pricing equations implemented in this module:
+//   surplus = max(0, PV - buildingLoad)
+//   marginalSolar = max(0, surplus - bookedPower)
+//   s = min(1, marginalSolar / bayPower)
+//   price = [LCOI + s * tariff.export + (1 - s) * tariff.import + tariff.demandPerKwh] * (1 + margin)
+//   energy per slot = bayPower * eta * slotHours
+//   slots needed = ceil(energyKwh / energy per slot), minimum 1
+//   total cost = sum(energyInSlot_i * price_i), with the last slot capped to remaining energy
+// Slot length is station.slotMinutes minutes, so slotHours is always station.slotMinutes / 60.
 
 // Build the list of slot start-times from the station config.
 function buildSlots(station) {
+  // slotHours derived from station.slotMinutes (single source of truth).
   const step = station.slotMinutes / 60;
   const slots = [];
   for (let t = station.openHour; t < station.closeHour - 1e-9; t += step) {
@@ -13,6 +18,7 @@ function buildSlots(station) {
   }
   return slots;
 }
+// slotHours derived from station.slotMinutes (single source of truth).
 const slotMid = (station, i) => buildSlots(station)[i] + (station.slotMinutes / 60) / 2;
 
 function bayPower(station, type) {
@@ -20,7 +26,7 @@ function bayPower(station, type) {
   return b ? b.power : (type === "DC" ? 30 : 7.4);
 }
 
-// Surplus solar available to EVs in a slot = PV − building load (never negative).
+// Surplus solar available to EVs in a slot = PV - building load (never negative).
 function surplus(pvKW, loadKW) {
   return Math.max(0, pvKW - loadKW);
 }
@@ -36,16 +42,23 @@ function priceForNextCar(station, surplusKW, bookedPowerKW, type) {
   return +(cost * (1 + station.margin)).toFixed(2);
 }
 
-// Best-case (first car, empty station) price — used for the published curve.
+// Best-case (first car, empty station) price - used for the published curve.
 function basePrice(station, pvKW, loadKW, type) {
   return priceForNextCar(station, surplus(pvKW, loadKW), 0, type);
 }
 
-// Flat tariff (no surplus) and floor (full surplus) — for reference / colouring.
+/*
+ * flatRate = the maximum price (all grid, s = 0).
+ */
 function flatRate(station, type) {
   const imp = type === "DC" ? station.tariff.importDC : station.tariff.importAC;
   return +((station.lcoi[type] + imp + station.tariff.demandPerKwh) * (1 + station.margin)).toFixed(2);
 }
+
+/*
+ * floorRate = the minimum price (all solar surplus, s = 1);
+ * every real slot price lies between floorRate and flatRate.
+ */
 function floorRate(station, type) {
   return +((station.lcoi[type] + station.tariff.export + station.tariff.demandPerKwh) * (1 + station.margin)).toFixed(2);
 }
@@ -55,13 +68,15 @@ function energyNeeded(soc0, socT, batteryKwh) {
   return Math.max(0, (socT - soc0) / 100 * batteryKwh);
 }
 function slotsNeeded(station, type, energyKwh) {
+  // slotHours derived from station.slotMinutes (single source of truth).
   const perSlot = bayPower(station, type) * station.eta * (station.slotMinutes / 60);
   return Math.max(1, Math.ceil(energyKwh / perSlot));
 }
 
-// Quote a booking: total cost = Σ (energy in slot × that slot's occupancy-aware price).
+// Quote a booking: total cost = sum(energy in slot * that slot's occupancy-aware price).
 //   occupancyBySlot[i] = power (kW) already booked in slot i (across all bays).
 function quote(station, forecast, type, startSlot, energyKwh, occupancyBySlot) {
+  // slotHours derived from station.slotMinutes (single source of truth).
   const perSlot = bayPower(station, type) * station.eta * (station.slotMinutes / 60);
   const n = slotsNeeded(station, type, energyKwh);
   let remaining = energyKwh, total = 0;

@@ -20,7 +20,7 @@ function tomorrow() { return new Date(Date.now() + 86400000).toISOString().slice
     name: "Colombo Community Station",
     lat: 6.9271, lon: 79.8612,
     pvKW: 150, performanceRatio: 0.8, tilt: 25, azimuth: 0, loss: 14,
-    openHour: 6.5, closeHour: 18.5, slotMinutes: 15,
+    openHour: 6.5, closeHour: 18.5, slotMinutes: 30,
     bays: [
       { bayId: "AC1", type: "AC", power: 7.4 }, { bayId: "AC2", type: "AC", power: 7.4 },
       { bayId: "AC3", type: "AC", power: 7.4 }, { bayId: "AC4", type: "AC", power: 7.4 },

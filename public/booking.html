@@ -111,7 +111,8 @@ function toast(msg){const t=g('toast');t.textContent=msg;t.classList.add('show')
 function authFetch(url,opts={}){opts.headers=Object.assign({},opts.headers,{Authorization:'Bearer '+token});return fetch(url,opts).then(async r=>{if(r.status===401){localStorage.clear();location.href='login.html';throw new Error('unauth')}return r});}
 function bayPower(type){const b=state.station.bays.find(x=>x.type===type);return b?b.power:(type==='DC'?30:7.4);}
 function energyNeeded(){const soc0=+g('currentSoc').value; const socT=+g('targetSoc').value; const cap=+g('batteryCapacity').value; return Math.max(0,(socT-soc0)/100*cap);}
-function slotsNeeded(type,energy){const perSlot=bayPower(type)*state.station.eta*(state.station.slotMinutes/60);return Math.max(1,Math.ceil(energy/perSlot));}
+function slotHours(){/* slotHours derived from station.slotMinutes (single source of truth). */return state.station.slotMinutes/60;}
+function slotsNeeded(type,energy){const perSlot=bayPower(type)*state.station.eta*slotHours();return Math.max(1,Math.ceil(energy/perSlot));}
 function updateSummary(){const energy=energyNeeded();const type=g('vehicleType').value;const n=slotsNeeded(type,energy);g('duration').value=n*state.station.slotMinutes+' min';g('summaryKwh').textContent=energy.toFixed(1)+' kWh';g('summarySlots').textContent=n;g('summaryPrice').textContent='—';}
 function renderStep(step){['step1','step2','step3'].forEach(id=>g(id).style.display=id===step?'block':'none');document.querySelectorAll('.step-pill').forEach(p=>p.classList.toggle('active',p.dataset.step===step.slice(4)));}
 function loadVehicles(){const select=g('vehicleSelect');select.innerHTML='<option value="">Use manual fields</option>'+state.vehicles.map(v=>`<option value="${v._id}">${v.brand} ${v.model} ${v.year||''}</option>`).join('');}

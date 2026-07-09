@@ -7,7 +7,7 @@
 const { buildSlots } = require("./pricing");
 
 function modelSolar(station) {
-  const slots = buildSlots(station), half = (station.slotMinutes / 60) / 2;
+  const slots = buildSlots(station), half = (station.slotMinutes / 60) / 2; // slotHours derived from station.slotMinutes (single source of truth).
   return slots.map(s => {
     const t = s + half;
     if (t <= station.openHour || t >= station.closeHour) return 0;
@@ -17,7 +17,7 @@ function modelSolar(station) {
 }
 
 function modelLoad(station) {
-  const slots = buildSlots(station), half = (station.slotMinutes / 60) / 2;
+  const slots = buildSlots(station), half = (station.slotMinutes / 60) / 2; // slotHours derived from station.slotMinutes (single source of truth).
   const peak = Math.max(4, station.pvKW * 0.25), base = peak * 0.65;
   return slots.map(s => {
     const t = s + half;
@@ -48,7 +48,7 @@ function parseLoadCSV(text, station) {
   });
   if (!pts.length) return null;
   pts.sort((a, b) => a.t - b.t);
-  const slots = buildSlots(station), half = (station.slotMinutes / 60) / 2;
+  const slots = buildSlots(station), half = (station.slotMinutes / 60) / 2; // slotHours derived from station.slotMinutes (single source of truth).
   return slots.map(s => {
     const t = s + half;
     if (t <= pts[0].t) return pts[0].v;
@@ -83,7 +83,7 @@ async function fetchPVGIS(station) {
   const sum = Array(24).fill(0), cnt = Array(24).fill(0);
   for (const r of hourly) { const h = parseInt(String(r.time).slice(9, 11), 10); sum[h] += r.P; cnt[h]++; }
   const hourlyKW = sum.map((x, h) => (cnt[h] ? (x / cnt[h]) / 1000 : 0));
-  const slots = buildSlots(station), half = (station.slotMinutes / 60) / 2;
+  const slots = buildSlots(station), half = (station.slotMinutes / 60) / 2; // slotHours derived from station.slotMinutes (single source of truth).
   return slots.map(s => {
     return +lerpHourly(hourlyKW, s + half).toFixed(3);
   });
@@ -115,7 +115,7 @@ async function fetchOpenMeteo(station) {
     hourGTI[hour] = Math.max(0, gti[i] || 0);
     hourTemp[hour] = Number.isFinite(temp[i]) ? temp[i] : 25;
   });
-  const slots = buildSlots(station), half = (station.slotMinutes / 60) / 2;
+  const slots = buildSlots(station), half = (station.slotMinutes / 60) / 2; // slotHours derived from station.slotMinutes (single source of truth).
   const systemDerate = Math.max(0, Number(station.performanceRatio || 1) * (1 - Number(station.loss || 0) / 100));
   const tempCoeff = -0.004; // typical crystalline silicon power coefficient per degree C
   return slots.map(s => {
