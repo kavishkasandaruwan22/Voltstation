@@ -48,6 +48,12 @@
   label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px;font-weight:500}
   input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-family:inherit;font-size:14px;background:#fff;color:var(--ink)}
   .desc{font-size:11.5px;color:var(--muted);margin-top:4px;min-height:18px}
+  .readonly{padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:#F8F9F7;font-family:"Space Grotesk";font-weight:600}
+  .lcoi-results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+  .lcoi-result{border:1px solid var(--line-2);border-radius:12px;padding:14px;background:#F8F9F7}
+  .lcoi-result span{display:block;color:var(--muted);font-size:12px;margin-bottom:4px}
+  .lcoi-result b{font-family:"Space Grotesk";font-size:22px}
+  @media(max-width:620px){.lcoi-results{grid-template-columns:1fr}}
   .cfg{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 24px;font-size:13.5px}
   @media(max-width:840px){.cfg{grid-template-columns:1fr 1fr}}@media(max-width:560px){.cfg{grid-template-columns:1fr}}
   .cfg div{border-bottom:1px solid var(--line-2);padding-bottom:8px}.cfg div span{color:var(--muted);display:block;font-size:12px}
@@ -93,8 +99,8 @@
           <div class="section">
             <h3>Tariff Parameters</h3>
             <div class="fields">
-              <div><label for="lcoiAC">LCOI (AC) - Rs/kWh</label><input id="lcoiAC" type="number" step="0.01" min="0"><div class="desc">Charger + Solar Recovery</div></div>
-              <div><label for="lcoiDC">LCOI (DC) - Rs/kWh</label><input id="lcoiDC" type="number" step="0.01" min="0"><div class="desc">DC charger recovery</div></div>
+              <div><label>LCOI (AC) - Rs/kWh</label><div class="readonly num" id="lcoiACDisplay">-</div><div class="desc">Computed from infrastructure costs only</div></div>
+              <div><label>LCOI (DC) - Rs/kWh</label><div class="readonly num" id="lcoiDCDisplay">-</div><div class="desc">Computed from infrastructure costs only</div></div>
               <div><label for="importAC">tau_import AC - Rs/kWh</label><input id="importAC" type="number" step="0.01" min="0"><div class="desc">Grid Electricity Cost</div></div>
               <div><label for="importDC">tau_import DC - Rs/kWh</label><input id="importDC" type="number" step="0.01" min="0"><div class="desc">DC grid electricity cost</div></div>
               <div><label for="exportCredit">tau_export - Rs/kWh</label><input id="exportCredit" type="number" step="0.01" min="0"><div class="desc">Solar Export Credit Given Up</div></div>
@@ -114,6 +120,57 @@
           </div>
         </div>
         <p class="hint">Saved values are stored on the station record and are used immediately by booking quotes, price curves, and user-facing tariff displays.</p>
+      </div>
+    </form>
+    <form id="infraForm" class="card">
+      <h2>Infrastructure Cost (LCOI) Calculator <button class="btnp" type="submit">Compute &amp; Save LCOI</button></h2>
+      <div class="body">
+        <div class="formgrid">
+          <div class="section">
+            <h3>Charger Setup</h3>
+            <div class="fields">
+              <div><label for="infraNAC">AC chargers</label><input id="infraNAC" type="number" step="1" min="0"><div class="desc">Number of AC units</div></div>
+              <div><label for="infraPAC">AC power - kW</label><input id="infraPAC" type="number" step="0.01" min="0"><div class="desc">Rated power per AC unit</div></div>
+              <div><label for="infraEtaAC">AC efficiency</label><input id="infraEtaAC" type="number" step="0.001" min="0"><div class="desc">Delivered energy factor</div></div>
+              <div><label for="infraNDC">DC chargers</label><input id="infraNDC" type="number" step="1" min="0"><div class="desc">Number of DC units</div></div>
+              <div><label for="infraPDC">DC power - kW</label><input id="infraPDC" type="number" step="0.01" min="0"><div class="desc">Rated power per DC unit</div></div>
+              <div><label for="infraEtaDC">DC efficiency</label><input id="infraEtaDC" type="number" step="0.001" min="0"><div class="desc">Delivered energy factor</div></div>
+            </div>
+          </div>
+          <div class="section">
+            <h3>Operation</h3>
+            <div class="fields">
+              <div><label for="infraHoursDay">Daytime hours</label><input id="infraHoursDay" type="number" step="0.01" min="0"><div class="desc">06:30-18:30 operating window</div></div>
+              <div><label for="infraHoursPeak">Peak hours</label><input id="infraHoursPeak" type="number" step="0.01" min="0"><div class="desc">Keep 0 for daytime-only station</div></div>
+              <div><label for="infraUtilisation">Utilisation</label><input id="infraUtilisation" type="number" step="0.001" min="0"><div class="desc">Average charger use factor</div></div>
+              <div><label for="infraDaysPerYear">Days per year</label><input id="infraDaysPerYear" type="number" step="1" min="0"><div class="desc">Annual operating days</div></div>
+            </div>
+          </div>
+          <div class="section">
+            <h3>Financials</h3>
+            <div class="fields">
+              <div><label for="infraDiscountRate">Discount rate</label><input id="infraDiscountRate" type="number" step="0.001" min="0"><div class="desc">r in the report equations</div></div>
+              <div><label for="infraProjectLife">Project life - years</label><input id="infraProjectLife" type="number" step="1" min="1"><div class="desc">L in the report equations</div></div>
+              <div><label for="infraReplaceFraction">Replacement fraction</label><input id="infraReplaceFraction" type="number" step="0.01" min="0"><div class="desc">Fraction of charger capital replaced</div></div>
+              <div><label for="infraReplaceYear">Replacement year</label><input id="infraReplaceYear" type="number" step="1" min="0"><div class="desc">Discounted replacement timing</div></div>
+            </div>
+          </div>
+          <div class="section">
+            <h3>Costs</h3>
+            <div class="fields">
+              <div><label for="infraChargerCostAC">AC charger cost - LKR/unit</label><input id="infraChargerCostAC" type="number" step="1" min="0"><div class="desc">Per AC unit capital cost</div></div>
+              <div><label for="infraChargerCostDC">DC charger cost - LKR/unit</label><input id="infraChargerCostDC" type="number" step="1" min="0"><div class="desc">Per DC unit capital cost</div></div>
+              <div><label for="infraSharedInstall">Shared install - LKR</label><input id="infraSharedInstall" type="number" step="1" min="0"><div class="desc">Civil/electrical install, no solar</div></div>
+              <div><label for="infraMaintAC">AC maintenance - LKR/yr/unit</label><input id="infraMaintAC" type="number" step="1" min="0"><div class="desc">Annual AC maintenance</div></div>
+              <div><label for="infraMaintDC">DC maintenance - LKR/yr/unit</label><input id="infraMaintDC" type="number" step="1" min="0"><div class="desc">Annual DC maintenance</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="lcoi-results">
+          <div class="lcoi-result"><span>LCOI_AC</span><b class="num" id="infraLcoiAC">-</b></div>
+          <div class="lcoi-result"><span>LCOI_DC</span><b class="num" id="infraLcoiDC">-</b></div>
+        </div>
+        <p class="hint">LCOI is infrastructure only - solar and margin are applied separately in the price.</p>
       </div>
     </form>
   </section>
@@ -154,6 +211,13 @@ function toast(m){const e=g("toast");e.textContent=m;e.classList.add("show");set
 function money(n){return "Rs " + Number(n || 0).toFixed(0);}
 function fmtDateTime(v){return v ? new Date(v).toLocaleString() : "";}
 function val(id){return Number(g(id).value);}
+const INFRA_DEFAULTS = { nAC:4, pAC:7.4, etaAC:0.995, nDC:1, pDC:30, etaDC:0.92, hoursDay:12, hoursPeak:0, utilisation:1 / 3, daysPerYear:365, discountRate:0.10, projectLife:20, chargerCostAC:350000, chargerCostDC:6500000, sharedInstall:2000000, maintAC:20000, maintDC:150000, replaceFraction:0.40, replaceYear:10 };
+const INFRA_FIELDS = [
+  ["nAC","infraNAC"], ["pAC","infraPAC"], ["etaAC","infraEtaAC"], ["nDC","infraNDC"], ["pDC","infraPDC"], ["etaDC","infraEtaDC"],
+  ["hoursDay","infraHoursDay"], ["hoursPeak","infraHoursPeak"], ["utilisation","infraUtilisation"], ["daysPerYear","infraDaysPerYear"],
+  ["discountRate","infraDiscountRate"], ["projectLife","infraProjectLife"], ["chargerCostAC","infraChargerCostAC"], ["chargerCostDC","infraChargerCostDC"],
+  ["sharedInstall","infraSharedInstall"], ["maintAC","infraMaintAC"], ["maintDC","infraMaintDC"], ["replaceFraction","infraReplaceFraction"], ["replaceYear","infraReplaceYear"]
+];
 
 let station = null;
 function setTab(name){
@@ -172,8 +236,8 @@ async function loadStation(){
 
 function fillTariffForm(){
   const t = station.tariff;
-  g("lcoiAC").value = station.lcoi.AC;
-  g("lcoiDC").value = station.lcoi.DC;
+  g("lcoiACDisplay").textContent = Number(station.lcoi.AC || 0).toFixed(2);
+  g("lcoiDCDisplay").textContent = Number(station.lcoi.DC || 0).toFixed(2);
   g("importAC").value = t.importAC;
   g("importDC").value = t.importDC;
   g("exportCredit").value = t.export;
@@ -184,6 +248,7 @@ function fillTariffForm(){
   g("tilt").value = station.tilt;
   g("azimuth").value = station.azimuth || 0;
   g("loss").value = station.loss;
+  fillInfraForm();
 }
 
 function renderStationConfig(){
@@ -220,7 +285,6 @@ async function saveTariff(e){
       export: val("exportCredit"),
       demandPerKwh: val("demandCharge")
     },
-    lcoi: { AC: val("lcoiAC"), DC: val("lcoiDC") },
     margin: val("marginPct") / 100
   };
   const r = await authFetch("/api/station/" + station._id, { method:"PUT", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload) });
@@ -233,6 +297,34 @@ async function saveTariff(e){
 }
 g("tariffForm").addEventListener("submit", saveTariff);
 
+function infraValue(key) {
+  return station.infra && station.infra[key] !== undefined ? station.infra[key] : INFRA_DEFAULTS[key];
+}
+
+function formatLcoi(n) {
+  return "Rs " + Number(n || 0).toFixed(2) + " /kWh";
+}
+
+function fillInfraForm(){
+  INFRA_FIELDS.forEach(([key, id]) => { g(id).value = infraValue(key); });
+  g("infraLcoiAC").textContent = formatLcoi(station.lcoi.AC);
+  g("infraLcoiDC").textContent = formatLcoi(station.lcoi.DC);
+}
+
+async function saveInfra(e){
+  e.preventDefault();
+  const payload = {};
+  INFRA_FIELDS.forEach(([key, id]) => { payload[key] = val(id); });
+  const r = await authFetch("/api/station/" + station._id + "/infra", { method:"PUT", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload) });
+  if(!r.ok){ const d=await r.json().catch(()=>({})); toast(d.error || "Could not compute LCOI"); return; }
+  station = await r.json();
+  fillTariffForm();
+  renderStationConfig();
+  await Promise.all([loadBookings(), loadSolarGrid()]);
+  toast("LCOI computed and saved");
+}
+
+g("infraForm").addEventListener("submit", saveInfra);
 async function loadBookings(){
   const list = await (await authFetch("/api/admin/bookings")).json();
   const tomorrow = new Date(Date.now()+864e5).toISOString().slice(0,10);

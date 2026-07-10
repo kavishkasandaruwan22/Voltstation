@@ -1,7 +1,7 @@
 const { mongoose } = require("./db");
 const { Schema } = mongoose;
 
-// ── Station: the full configuration for ONE site (nothing hard-coded) ──
+// Station: the full configuration for ONE site (nothing hard-coded)
 const StationSchema = new Schema({
   name: String,
   lat: Number, lon: Number,
@@ -15,17 +15,38 @@ const StationSchema = new Schema({
   slotMinutes: { type: Number, default: 30 },
   bays: [{ bayId: String, type: { type: String, enum: ["AC", "DC"] }, power: Number }],
   tariff: {
-    importAC: { type: Number, default: 70 },
-    importDC: { type: Number, default: 87 },
+    importAC: { type: Number, default: 43 },
+    importDC: { type: Number, default: 43 },
     export: { type: Number, default: 19.61 },
-    demandPerKwh: { type: Number, default: 2 }
+    demandPerKwh: { type: Number, default: 0 }
   },
-  lcoi: { AC: { type: Number, default: 15.35 }, DC: { type: Number, default: 35 } },
-  margin: { type: Number, default: 0.06 },
+  infra: {
+    nAC: { type: Number, default: 4 },
+    pAC: { type: Number, default: 7.4 },
+    etaAC: { type: Number, default: 0.995 },
+    nDC: { type: Number, default: 1 },
+    pDC: { type: Number, default: 30 },
+    etaDC: { type: Number, default: 0.92 },
+    hoursDay: { type: Number, default: 12 },
+    hoursPeak: { type: Number, default: 0 },
+    utilisation: { type: Number, default: 1 / 3 },
+    daysPerYear: { type: Number, default: 365 },
+    discountRate: { type: Number, default: 0.10 },
+    projectLife: { type: Number, default: 20 },
+    chargerCostAC: { type: Number, default: 350000 },
+    chargerCostDC: { type: Number, default: 6500000 },
+    sharedInstall: { type: Number, default: 2000000 },
+    maintAC: { type: Number, default: 20000 },
+    maintDC: { type: Number, default: 150000 },
+    replaceFraction: { type: Number, default: 0.40 },
+    replaceYear: { type: Number, default: 10 }
+  },
+  lcoi: { AC: { type: Number, default: 8.99 }, DC: { type: Number, default: 28.53 } },
+  margin: { type: Number, default: 0.20 },
   eta: { type: Number, default: 0.97 }
 });
 
-// ── Forecast: PV + load arrays (per slot) for one station + day ──
+// Forecast: PV + load arrays (per slot) for one station + day
 const ForecastSchema = new Schema({
   stationId: { type: Schema.Types.ObjectId, ref: "Station", index: true },
   date: { type: String, index: true },   // "YYYY-MM-DD"
@@ -35,7 +56,7 @@ const ForecastSchema = new Schema({
 });
 ForecastSchema.index({ stationId: 1, date: 1 }, { unique: true });
 
-// ── User: vehicle owners (role "user") and the station owner (role "admin") ──
+// User: vehicle owners (role "user") and the station owner (role "admin")
 const UserSchema = new Schema({
   name: String,
   email: { type: String, unique: true },
@@ -49,7 +70,7 @@ const UserSchema = new Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// ── Booking: one reservation ──
+// Booking: one reservation
 const BookingSchema = new Schema({
   stationId: { type: Schema.Types.ObjectId, ref: "Station", index: true },
   date: { type: String, index: true },
@@ -74,8 +95,8 @@ BookingSchema.index(
   { unique: true, partialFilterExpression: { status: { $in: ["booked", "charging"] } } }
 );
 
-// ── Occupancy: one doc per occupied (station,date,bay,slot). The UNIQUE index
-//    is what makes booking exclusive — two people cannot grab the same cell. ──
+// Occupancy: one doc per occupied (station,date,bay,slot). The UNIQUE index
+// is what makes booking exclusive - two people cannot grab the same cell.
 const OccupancySchema = new Schema({
   stationId: Schema.Types.ObjectId,
   date: String,
@@ -86,7 +107,7 @@ const OccupancySchema = new Schema({
 });
 OccupancySchema.index({ stationId: 1, date: 1, bayId: 1, slot: 1 }, { unique: true });
 
-// ── Notification: real-time slot availability updates for users. ──
+// Notification: real-time slot availability updates for users.
 const NotificationSchema = new Schema({
   userId: { type: Schema.Types.ObjectId, ref: "User", index: true },
   stationId: { type: Schema.Types.ObjectId, ref: "Station", index: true },

@@ -9,6 +9,7 @@ const { Station, Forecast, Booking, Occupancy, User, Notification } = require(".
 const P = require("./src/pricing");
 const A = require("./src/auth");
 const { buildForecast } = require("./src/forecast");
+const { computeLCOI, INFRA_DEFAULTS } = require("./src/lcoi");
 
 const app = express();
 const server = http.createServer(app);
@@ -139,7 +140,9 @@ app.get("/api/auth/me", A.requireAuth, async (req, res) => {
 app.get("/api/station", A.requireAuth, async (_, res) => res.json(await getStation()));
 app.put("/api/station/:id", A.requireAdmin, async (req, res) => {
   try {
-    const station = await Station.findByIdAndUpdate(req.params.id, req.body, {
+    const update = { ...req.body };
+    delete update.lcoi;
+    const station = await Station.findByIdAndUpdate(req.params.id, update, {
       new: true,
       runValidators: true
     }).lean();
@@ -151,6 +154,25 @@ app.put("/api/station/:id", A.requireAdmin, async (req, res) => {
   }
 });
 
+app.put("/api/station/:id/infra", A.requireAdmin, async (req, res) => {
+  try {
+    const station = await Station.findById(req.params.id);
+    if (!station) return res.status(404).json({ error: "station not found" });
+    Object.keys(INFRA_DEFAULTS).forEach(key => {
+      if (Object.prototype.hasOwnProperty.call(req.body, key)) station.infra[key] = req.body[key];
+    });
+    const lcoi = computeLCOI(station);
+    station.lcoi.AC = lcoi.AC;
+    station.lcoi.DC = lcoi.DC;
+    const dayRate = Number(station.tariff?.dayRate || req.body?.tariff?.dayRate || 43);
+    station.tariff.importAC = dayRate;
+    station.tariff.importDC = dayRate;
+    await station.save();
+    res.json(station.toObject());
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
 // rebuild tomorrow's forecast (admin)
 app.post("/api/forecast/refresh", A.requireAdmin, async (_, res) => {
   const station = await getStation();
@@ -360,4 +382,3 @@ app.post("/api/notifications/:id/read", A.requireAuth, async (req, res) => {
   const port = process.env.PORT || 4000;
   server.listen(port, () => console.log(`OK VoltStation backend on http://localhost:${port}`));
 })();
-
