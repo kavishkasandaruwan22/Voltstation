@@ -106,7 +106,10 @@ async function fetchOpenMeteo(station) {
   const times = data.hourly.time;
   const gti = data.hourly.global_tilted_irradiance;
   const temp = data.hourly.temperature_2m;
-  const tmr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const STATION_TZ = process.env.STATION_TZ || "Asia/Colombo";
+  const tmr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: STATION_TZ, year: "numeric", month: "2-digit", day: "2-digit"
+  }).format(new Date(Date.now() + 86400000));
   const hourGTI = Array(24).fill(0);
   const hourTemp = Array(24).fill(25);
   times.forEach((t, i) => {

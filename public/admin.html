@@ -38,6 +38,7 @@
   table.bk td{padding:10px 8px;border-bottom:1px solid var(--line-2);vertical-align:top;white-space:nowrap}
   .pill{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;text-transform:capitalize}
   .pill.booked,.pill.charging{background:#E1F0F0;color:var(--primary)}.pill.done{background:#EFEFEC;color:var(--muted)}.pill.cancelled,.pill.noshow{background:#FBE6DC;color:#B6552F}
+  .pill.pending{background:#FFF1C7;color:#7A5412}.pill.assigned,.pill.published{background:#DDEFE6;color:#17643B}.pill.waitlisted{background:#FBE6DC;color:#B6552F}
   .rel{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 10px;font-size:12px;cursor:pointer;color:#B6552F}.rel:hover{background:#FBE6DC}
   .formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
   @media(max-width:840px){.formgrid{grid-template-columns:1fr}}
@@ -46,7 +47,8 @@
   .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
   @media(max-width:620px){.fields{grid-template-columns:1fr}}
   label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px;font-weight:500}
-  input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-family:inherit;font-size:14px;background:#fff;color:var(--ink)}
+  input,select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-family:inherit;font-size:14px;background:#fff;color:var(--ink)}
+  .field-hidden{display:none}
   .desc{font-size:11.5px;color:var(--muted);margin-top:4px;min-height:18px}
   .readonly{padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:#F8F9F7;font-family:"Space Grotesk";font-weight:600}
   .lcoi-results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
@@ -60,6 +62,23 @@
   .empty{color:var(--muted);text-align:center;padding:24px}
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;box-shadow:var(--shadow);transition:.25s;pointer-events:none;z-index:9}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toolbar{display:flex;align-items:end;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .toolbar .fields{grid-template-columns:minmax(170px,220px)}
+  .btnp:disabled,.rel:disabled{opacity:.5;cursor:not-allowed}
+  .badge{display:inline-flex;align-items:center;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700;text-transform:none;white-space:nowrap}
+  .badge.good{background:#DDEFE6;color:#17643B}.badge.warn{background:#FFF1C7;color:#7A5412}.badge.neutral{background:#EFEFEC;color:var(--muted)}
+  .warning{border:1px solid #E9C46A;background:#FFF8DF;color:#6E4E12;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;font-weight:600}
+  .opt-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .mini-stat{border:1px solid var(--line-2);border-radius:12px;background:#F8F9F7;padding:12px}
+  .mini-stat span{display:block;color:var(--muted);font-size:11.5px;margin-bottom:3px}.mini-stat b{font-family:"Space Grotesk";font-size:18px}
+  @media(max-width:900px){.opt-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.opt-summary{grid-template-columns:1fr}}
+  .schedule-grid{display:grid;gap:10px}
+  .gantt-row{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:center}
+  .gantt-label{font-weight:700;font-size:12.5px;color:var(--primary)}
+  .gantt-track{position:relative;height:34px;border:1px solid var(--line-2);border-radius:9px;background:repeating-linear-gradient(to right,#fff 0,#fff 7.9%,#F2F4F0 8%,#F2F4F0 8.2%)}
+  .gantt-bar{position:absolute;top:5px;height:22px;border-radius:7px;background:var(--primary);color:#fff;font-size:11px;line-height:22px;padding:0 7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .gantt-bar.turnover{background:#8A8F89;opacity:.82}
+  .gantt-time{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-left:130px;margin-top:6px}
 </style>
 </head>
 <body>
@@ -75,8 +94,10 @@
 
   <nav class="tabs" aria-label="Admin sections">
     <button class="tab active" data-tab="bookings">Bookings</button>
+    <button class="tab" data-tab="optimization">Day-ahead Optimization</button>
     <button class="tab" data-tab="tariff">Tariff</button>
     <button class="tab" data-tab="station">Station Configuration</button>
+    <button class="tab" data-tab="comparison">Comparison</button>
   </nav>
 
   <section class="tabpane active" id="tab-bookings">
@@ -91,6 +112,44 @@
     </div>
   </section>
 
+  <section class="tabpane" id="tab-optimization">
+    <div class="card">
+      <h2>Day-ahead Optimization</h2>
+      <div class="body">
+        <div class="toolbar">
+          <div class="fields">
+            <div><label for="optDate">Charging date</label><input id="optDate" type="date"></div>
+          </div>
+          <div class="btns">
+            <button class="btnp" id="loadOpt" type="button">Load Requests</button>
+            <button class="btnp" id="runOpt" type="button">Run Optimization</button>
+            <button class="btnp" id="publishOpt" type="button" disabled>Publish Appointments</button>
+            <button class="btnp" id="exportOpt" type="button" disabled>Export CSV</button>
+          </div>
+        </div>
+        <p class="hint">Assignments are fixed after publication. To change a published appointment, cancel the affected booking and run the optimizer again.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Optimization summary <span id="optSolverBadge" class="badge neutral">No run</span></h2>
+      <div class="body">
+        <div id="optWarning"></div>
+        <div id="optSummary"><div class="empty">Load a date to view optimization results.</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Requests</h2>
+      <div class="body"><div id="optRequests"><div class="empty">No date loaded.</div></div></div>
+    </div>
+
+    <div class="card">
+      <h2>Appointment schedule</h2>
+      <div class="body"><div id="optSchedule"><div class="empty">Run optimization to view assignments by charger and time.</div></div></div>
+    </div>
+  </section>
+
   <section class="tabpane" id="tab-tariff">
     <form id="tariffForm" class="card">
       <h2>Pricing parameters <button class="btnp" type="submit">Save Changes</button></h2>
@@ -101,17 +160,30 @@
             <div class="fields">
               <div><label>LCOI (AC) - Rs/kWh</label><div class="readonly num" id="lcoiACDisplay">-</div><div class="desc">Computed from infrastructure costs only</div></div>
               <div><label>LCOI (DC) - Rs/kWh</label><div class="readonly num" id="lcoiDCDisplay">-</div><div class="desc">Computed from infrastructure costs only</div></div>
-              <div><label for="importAC">tau_import AC - Rs/kWh</label><input id="importAC" type="number" step="0.01" min="0"><div class="desc">Grid Electricity Cost</div></div>
-              <div><label for="importDC">tau_import DC - Rs/kWh</label><input id="importDC" type="number" step="0.01" min="0"><div class="desc">DC grid electricity cost</div></div>
+              <div><label for="dayRate">Day rate [05:30-18:30] (LKR/kWh)</label><input id="dayRate" type="number" step="0.01" min="0"><div class="desc">Grid rate during charging hours - the live import cost</div></div>
+              <div><label for="peakRate">Peak rate [18:30-22:30] (LKR/kWh)</label><input id="peakRate" type="number" step="0.01" min="0"><div class="desc">Stored for completeness; outside charging hours</div></div>
+              <div><label for="offPeakRate">Off-Peak rate [22:30-05:30] (LKR/kWh)</label><input id="offPeakRate" type="number" step="0.01" min="0"><div class="desc">Stored for completeness; outside charging hours</div></div>
               <div><label for="exportCredit">tau_export - Rs/kWh</label><input id="exportCredit" type="number" step="0.01" min="0"><div class="desc">Solar Export Credit Given Up</div></div>
               <div><label for="demandCharge">Demand Charge - Rs/kWh</label><input id="demandCharge" type="number" step="0.01" min="0"><div class="desc">Demand charge allocation</div></div>
               <div><label for="marginPct">Profit Margin - %</label><input id="marginPct" type="number" step="0.01" min="0"><div class="desc">Applied after base cost</div></div>
             </div>
+            <p class="hint">AC and DC draw grid electricity at the same General Purpose Day rate. The AC/DC price difference comes from LCOI (infrastructure recovery), not from the grid tariff.</p>
+          </div>
+          <div class="section">
+            <h3>Home charging reference - Domestic Peak / Day / Off-Peak (LKR/kWh)</h3>
+            <div class="fields">
+              <div><label for="homePeakRate">Domestic Peak [18:30-22:30]</label><input id="homePeakRate" type="number" step="0.01" min="0"><div class="desc">Reference only - does not affect station pricing</div></div>
+              <div><label for="homeDayRate">Domestic Day [05:30-18:30]</label><input id="homeDayRate" type="number" step="0.01" min="0"><div class="desc">Reference only - does not affect station pricing</div></div>
+              <div><label for="homeOffPeakRate">Domestic Off-Peak [22:30-05:30]</label><input id="homeOffPeakRate" type="number" step="0.01" min="0"><div class="desc">Reference only - does not affect station pricing</div></div>
+            </div>
+            <p class="hint">Used only by the Comparison tab to model home overnight charging on the domestic tariff.</p>
           </div>
           <div class="section">
             <h3>PV System Configuration</h3>
             <div class="fields">
               <div><label for="pvKW">PV System Capacity - kW</label><input id="pvKW" type="number" step="0.01" min="0"><div class="desc">Solar array size used by forecasts</div></div>
+              <div><label for="solarAllocationMode">Solar allocation mode</label><select id="solarAllocationMode"><option value="SHARED_SURPLUS">Shared university surplus PV</option><option value="DEDICATED_EV_PV">Dedicated EV-station PV</option></select><div class="desc">How optimized EV charging can use PV</div></div>
+              <div id="dedicatedPvKWField"><label for="dedicatedPvKW">Dedicated EV PV array (kWp)</label><input id="dedicatedPvKW" type="number" step="0.01" min="0"><div class="desc">Used only for dedicated EV-station PV mode</div></div>
               <div><label for="performanceRatio">Performance Ratio</label><input id="performanceRatio" type="number" step="0.01" min="0"><div class="desc">PV conversion efficiency factor</div></div>
               <div><label for="tilt">Panel Tilt - degrees</label><input id="tilt" type="number" step="0.1" min="0"><div class="desc">Panel slope used by PVGIS/Open-Meteo</div></div>
               <div><label for="azimuth">Panel Azimuth - degrees</label><input id="azimuth" type="number" step="1"><div class="desc">0=south, -90=east, 90=west</div></div>
@@ -194,6 +266,47 @@
       <div class="body"><div class="cfg" id="cfg"></div></div>
     </div>
   </section>
+
+  <section class="tabpane" id="tab-comparison">
+    <div class="card">
+      <h2>Comparison analysis</h2>
+      <div class="body">
+        <div class="toolbar">
+          <div class="fields">
+            <div><label for="cmpDate">Charging date</label><input id="cmpDate" type="date"></div>
+          </div>
+          <div class="btns">
+            <button class="btnp" id="runCmp" type="button">Run comparison</button>
+            <button class="btnp" id="exportCmp" type="button" disabled>Download CSV</button>
+          </div>
+        </div>
+        <p class="hint">Evaluates the same set of auto-schedule requests three ways: home night charging (status quo), uncontrolled daytime charging (FCFS), and the optimized daytime schedule.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Scenario comparison</h2>
+      <div class="body"><div id="cmpTable"><div class="empty">Run a comparison to see results.</div></div></div>
+    </div>
+
+    <div class="card">
+      <h2>EV load profile - night vs day</h2>
+      <div class="body">
+        <div id="cmpChart"></div>
+        <div style="display:flex;gap:16px;font-size:12.5px;color:var(--muted);margin-top:8px;flex-wrap:wrap">
+          <span><span style="display:inline-block;width:12px;height:3px;background:#B6552F;vertical-align:2px"></span> Home night charging</span>
+          <span><span style="display:inline-block;width:12px;height:3px;background:#8A8F89;vertical-align:2px"></span> Uncontrolled daytime (FCFS)</span>
+          <span><span style="display:inline-block;width:12px;height:3px;background:#0E4D52;vertical-align:2px"></span> Optimized daytime</span>
+          <span><span style="display:inline-block;width:12px;height:11px;background:#FBE6DC;vertical-align:-1px"></span> National evening peak (18:30-22:30)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Margin sensitivity (optimized daytime)</h2>
+      <div class="body"><div id="cmpMargins"><div class="empty">Run a comparison to see the margin table.</div></div></div>
+    </div>
+  </section>
 </main>
 <div class="toast" id="toast"></div>
 
@@ -206,11 +319,31 @@ async function authFetch(url, opts = {}) {
   if (r.status === 401 || r.status === 403) { localStorage.clear(); location.href = "login.html"; throw new Error("unauth"); }
   return r;
 }
+async function readJson(response, fallback = {}) {
+  const body = await response.text();
+  if (!body) return fallback;
+  try {
+    return JSON.parse(body);
+  } catch (error) {
+    throw new Error(response.ok ? "Server returned invalid JSON" : `Request failed with status ${response.status}`);
+  }
+}
 const g = id => document.getElementById(id);
 function toast(m){const e=g("toast");e.textContent=m;e.classList.add("show");setTimeout(()=>e.classList.remove("show"),2600);}
 function money(n){return "Rs " + Number(n || 0).toFixed(0);}
 function fmtDateTime(v){return v ? new Date(v).toLocaleString() : "";}
 function val(id){return Number(g(id).value);}
+function esc(v){return String(v ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));}
+function fixed(n, d = 2){return Number(n || 0).toFixed(d);}
+const STATION_TZ = "Asia/Colombo";
+// en-CA formats as YYYY-MM-DD, matching what the backend expects.
+function localDateString(d = new Date(), tz = STATION_TZ) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit"
+  }).format(d);
+}
+function tomorrowISO(){ return localDateString(new Date(Date.now()+864e5)); }
+function fmtWindow(start, end){return (start || "-") + " - " + (end || "-");}
 const INFRA_DEFAULTS = { nAC:4, pAC:7.4, etaAC:0.995, nDC:1, pDC:30, etaDC:0.92, hoursDay:12, hoursPeak:0, utilisation:1 / 3, daysPerYear:365, discountRate:0.10, projectLife:20, chargerCostAC:350000, chargerCostDC:6500000, sharedInstall:2000000, maintAC:20000, maintDC:150000, replaceFraction:0.40, replaceYear:10 };
 const INFRA_FIELDS = [
   ["nAC","infraNAC"], ["pAC","infraPAC"], ["etaAC","infraEtaAC"], ["nDC","infraNDC"], ["pDC","infraPDC"], ["etaDC","infraEtaDC"],
@@ -220,6 +353,7 @@ const INFRA_FIELDS = [
 ];
 
 let station = null;
+let optimizationData = { date: "", run: null, requests: [] };
 function setTab(name){
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.dataset.tab===name));
   document.querySelectorAll(".tabpane").forEach(p=>p.classList.toggle("active", p.id==="tab-"+name));
@@ -227,7 +361,7 @@ function setTab(name){
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>setTab(t.dataset.tab));
 
 async function loadStation(){
-  station = await (await authFetch("/api/station")).json();
+  station = await readJson(await authFetch("/api/station"));
   g("stname").textContent = station.name;
   g("uname").textContent = localStorage.getItem("vs_name") || "Owner";
   fillTariffForm();
@@ -238,12 +372,20 @@ function fillTariffForm(){
   const t = station.tariff;
   g("lcoiACDisplay").textContent = Number(station.lcoi.AC || 0).toFixed(2);
   g("lcoiDCDisplay").textContent = Number(station.lcoi.DC || 0).toFixed(2);
-  g("importAC").value = t.importAC;
-  g("importDC").value = t.importDC;
+  g("dayRate").value = t.dayRate ?? t.importAC ?? 43;
+  g("peakRate").value = t.peakRate ?? 66;
+  g("offPeakRate").value = t.offPeakRate ?? 34;
   g("exportCredit").value = t.export;
   g("demandCharge").value = t.demandPerKwh;
   g("marginPct").value = (station.margin * 100).toFixed(2);
+  const dt = station.domesticTariff || {};
+  g("homePeakRate").value = dt.homePeakRate ?? 90;
+  g("homeDayRate").value = dt.homeDayRate ?? 40;
+  g("homeOffPeakRate").value = dt.homeOffPeakRate ?? 28;
   g("pvKW").value = station.pvKW;
+  g("solarAllocationMode").value = station.solarAllocationMode || "SHARED_SURPLUS";
+  g("dedicatedPvKW").value = station.dedicatedPvKW || 0;
+  updateSolarAllocationControls();
   g("performanceRatio").value = station.performanceRatio;
   g("tilt").value = station.tilt;
   g("azimuth").value = station.azimuth || 0;
@@ -251,11 +393,19 @@ function fillTariffForm(){
   fillInfraForm();
 }
 
+function updateSolarAllocationControls(){
+  const dedicated = g("solarAllocationMode").value === "DEDICATED_EV_PV";
+  g("dedicatedPvKWField").classList.toggle("field-hidden", !dedicated);
+  g("dedicatedPvKW").disabled = !dedicated;
+}
+
 function renderStationConfig(){
-  const t = station.tariff, b = station.bays;
+  const t = station.tariff, b = station.bays, dt = station.domesticTariff || {};
   g("cfg").innerHTML = [
     ["Location", station.lat + ", " + station.lon],
     ["PV size", station.pvKW + " kWp"],
+    ["Solar allocation", station.solarAllocationMode === "DEDICATED_EV_PV" ? "Dedicated EV-station PV" : "Shared university surplus PV"],
+    ["Dedicated EV PV", (station.dedicatedPvKW || 0) + " kWp"],
     ["Performance ratio", station.performanceRatio],
     ["Tilt / azimuth", station.tilt + " deg / " + (station.azimuth || 0) + " deg"],
     ["System loss", station.loss + " %"],
@@ -264,10 +414,12 @@ function renderStationConfig(){
     ["Hours", station.openHour + " - " + station.closeHour],
     ["Slot length", station.slotMinutes + " min"],
     ["Charging efficiency", (station.eta * 100).toFixed(0) + " %"],
-    ["Import AC / DC", "Rs " + t.importAC + " / " + t.importDC],
+    ["General Purpose rates", "Day Rs " + (t.dayRate ?? t.importAC) + " / Peak Rs " + (t.peakRate ?? 66) + " / Off-Peak Rs " + (t.offPeakRate ?? 34)],
+    ["Live import AC / DC", "Rs " + t.importAC + " / " + t.importDC],
     ["Export credit", "Rs " + t.export],
     ["LCOI AC / DC", "Rs " + station.lcoi.AC + " / " + station.lcoi.DC],
-    ["Margin", (station.margin*100).toFixed(0) + " %"]
+    ["Margin", (station.margin*100).toFixed(0) + " %"],
+    ["Home charging reference", "Peak Rs " + (dt.homePeakRate ?? 90) + " / Day Rs " + (dt.homeDayRate ?? 40) + " / Off-Peak Rs " + (dt.homeOffPeakRate ?? 28)]
   ].map(([k,v])=>`<div><span>${k}</span><b>${v}</b></div>`).join("");
 }
 
@@ -275,27 +427,39 @@ async function saveTariff(e){
   e.preventDefault();
   const payload = {
     pvKW: val("pvKW"),
+    solarAllocationMode: g("solarAllocationMode").value,
+    dedicatedPvKW: val("dedicatedPvKW"),
     performanceRatio: val("performanceRatio"),
     tilt: val("tilt"),
     azimuth: val("azimuth"),
     loss: val("loss"),
     tariff: {
-      importAC: val("importAC"),
-      importDC: val("importDC"),
+      dayRate: val("dayRate"),
+      peakRate: val("peakRate"),
+      offPeakRate: val("offPeakRate"),
       export: val("exportCredit"),
       demandPerKwh: val("demandCharge")
+    },
+    domesticTariff: {
+      homePeakRate: val("homePeakRate"),
+      homeDayRate: val("homeDayRate"),
+      homeOffPeakRate: val("homeOffPeakRate")
     },
     margin: val("marginPct") / 100
   };
   const r = await authFetch("/api/station/" + station._id, { method:"PUT", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload) });
-  if(!r.ok){ const d=await r.json().catch(()=>({})); toast(d.error || "Could not save changes"); return; }
-  station = await r.json();
+  if(!r.ok){ const d=await readJson(r).catch(()=>({})); toast(d.error || "Could not save changes"); return; }
+  const saved = await readJson(r);
+  station = saved;
   fillTariffForm();
   renderStationConfig();
   await Promise.all([loadBookings(), loadSolarGrid()]);
-  toast("Tariff changes saved");
+  toast(saved.forecastRebuilt
+    ? `Settings saved - forecast rebuilt (solar: ${saved.forecastSource}, load: ${saved.forecastLoadSrc})`
+    : "Tariff changes saved");
 }
 g("tariffForm").addEventListener("submit", saveTariff);
+g("solarAllocationMode").addEventListener("change", updateSolarAllocationControls);
 
 function infraValue(key) {
   return station.infra && station.infra[key] !== undefined ? station.infra[key] : INFRA_DEFAULTS[key];
@@ -316,8 +480,8 @@ async function saveInfra(e){
   const payload = {};
   INFRA_FIELDS.forEach(([key, id]) => { payload[key] = val(id); });
   const r = await authFetch("/api/station/" + station._id + "/infra", { method:"PUT", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload) });
-  if(!r.ok){ const d=await r.json().catch(()=>({})); toast(d.error || "Could not compute LCOI"); return; }
-  station = await r.json();
+  if(!r.ok){ const d=await readJson(r).catch(()=>({})); toast(d.error || "Could not compute LCOI"); return; }
+  station = await readJson(r);
   fillTariffForm();
   renderStationConfig();
   await Promise.all([loadBookings(), loadSolarGrid()]);
@@ -326,8 +490,8 @@ async function saveInfra(e){
 
 g("infraForm").addEventListener("submit", saveInfra);
 async function loadBookings(){
-  const list = await (await authFetch("/api/admin/bookings")).json();
-  const tomorrow = new Date(Date.now()+864e5).toISOString().slice(0,10);
+  const list = await readJson(await authFetch("/api/admin/bookings"), []);
+  const tomorrow = tomorrowISO();
   const bookedTomorrow = list.filter(b => b.status === "booked" && b.date === tomorrow);
   const active = list.filter(b => b.status === "booked");
   g("kBookings").textContent = bookedTomorrow.length;
@@ -359,15 +523,196 @@ async function loadBookings(){
   });
 }
 
+function solverBadge(run){
+  if (!run) return '<span class="badge neutral">No run</span>';
+  if (run.solver === "scipy-milp") return '<span class="badge good">scipy-milp</span>';
+  if (run.solver === "greedy-fallback") return '<span class="badge warn">greedy-fallback</span>';
+  return `<span class="badge neutral">${esc(run.solver || "unknown")}</span>`;
+}
+
+function renderOptimizationSummary(run, requests){
+  g("optSolverBadge").outerHTML = `<span id="optSolverBadge">${solverBadge(run)}</span>`;
+  const status = String(run && run.status || "").toUpperCase();
+  g("publishOpt").disabled = !run || status === "FAILED" || status === "PUBLISHED";
+  g("exportOpt").disabled = !run;
+  const source = optimizationData.forecastSource || {};
+  const loadMeta = source.loadMeta || {};
+  const pvDiag = optimizationData.pvDiagnostics || {};
+  const sourceItems = [
+    ["PV source", pvDiag.pvSource || source.solarSource || "-"],
+    ["PV maximum output", pvDiag.pvMaxKW != null ? fixed(pvDiag.pvMaxKW, 1) + " kW" : "-"],
+    ["Daily PV energy", pvDiag.dailyPvEnergyKWh != null ? fixed(pvDiag.dailyPvEnergyKWh, 1) + " kWh" : "-"],
+    ["Solar allocation mode", pvDiag.solarAllocationMode || "-"],
+    ["Max EV-available solar", pvDiag.maxEvAvailableSolarKW != null ? fixed(pvDiag.maxEvAvailableSolarKW, 1) + " kW" : "-"],
+    ["University load source", source.loadSource || "-"],
+    ["Load rows", loadMeta.rows ?? "-"],
+    ["Load min / max", loadMeta.minLoadKW != null ? fixed(loadMeta.minLoadKW, 1) + " / " + fixed(loadMeta.maxLoadKW, 1) + " kW" : "-"],
+    ["Load resolution", loadMeta.sourceResolutionMinutes ? loadMeta.sourceResolutionMinutes + " min" : "-"],
+    ["Interpolation", loadMeta.interpolationPerformed ? "Yes" : "No"]
+  ];
+  if (!run) {
+    g("optWarning").innerHTML = "";
+    g("optSummary").innerHTML = `<div class="opt-summary">${sourceItems.map(([k,v])=>`<div class="mini-stat"><span>${esc(k)}</span><b class="num">${esc(v)}</b></div>`).join("")}</div><div class="empty">No optimization run has been created for this date.</div>`;
+    return;
+  }
+  const warnings = [];
+  if (run.solver === "greedy-fallback") warnings.push("Warning: this run used greedy-fallback. It is a heuristic fallback and must not be used as mathematical optimization results for final research.");
+  if (source.loadSource === "model") warnings.push("Warning: university load source is a modelled fallback curve, not measured report-quality data.");
+  g("optWarning").innerHTML = warnings.map(w => `<div class="warning">${esc(w)}</div>`).join("");
+  const waitlisted = Number(run.rejectedCount || 0);
+  const items = [
+    ...sourceItems,
+    ["Status", run.status || "-"],
+    ["Runtime", fixed(run.runtimeMs, 0) + " ms"],
+    ["Proven optimal", run.provenOptimal == null ? "-" : (run.provenOptimal ? "Yes" : (run.timeLimitHit ? "No - time limit hit" : "No"))],
+    ["MIP gap", run.mipGap == null ? "-" : (Number(run.mipGap) * 100).toFixed(3) + " %"],
+    ["Requests received", run.requestCount ?? requests.length],
+    ["Requests accepted", run.acceptedCount ?? 0],
+    ["Waitlisted / rejected", waitlisted],
+    ["Peak before", fixed(run.peakBeforeKW) + " kW"],
+    ["Peak after", fixed(run.peakAfterKW) + " kW"],
+    ["Solar energy used", fixed(run.solarEnergyKWh) + " kWh"],
+    ["Grid energy used", fixed(run.gridEnergyKWh) + " kWh"],
+    ["Total revenue", money(run.totalRevenue)],
+    ["Infrastructure recovery", money(run.infrastructureRecovery)],
+    ["Estimated operator profit", money(run.operatorProfit)],
+    ["Average user cost", money(run.averageUserCost)]
+  ];
+  g("optSummary").innerHTML = `<div class="opt-summary">${items.map(([k,v])=>`<div class="mini-stat"><span>${esc(k)}</span><b class="num">${esc(v)}</b></div>`).join("")}</div>`;
+}
+
+function assignmentMap(run){
+  const map = new Map();
+  for (const a of (run && run.assignments) || []) map.set(String(a.requestId), a);
+  return map;
+}
+
+function renderOptimizationRequests(requests, run){
+  if (!requests.length) {
+    g("optRequests").innerHTML = '<div class="empty">No optimized requests for this date.</div>';
+    return;
+  }
+  const assigned = assignmentMap(run);
+  g("optRequests").innerHTML = `<div class="tablewrap"><table class="bk"><tr>
+    <th>User</th><th>Availability window</th><th>Required energy</th><th>Required slots</th><th>Fixed AC power</th>
+    <th>Preferred period</th><th>Priority</th><th>Status</th><th>Assigned charger</th><th>Assigned appointment</th><th>Rejection reason</th>
+  </tr>${requests.map(r => {
+    const a = assigned.get(String(r._id)) || {};
+    const status = String(r.status || "").toLowerCase();
+    return `<tr>
+      <td>${esc(r.userName || r.userId || "-")}</td>
+      <td>${esc(fmtWindow(r.universityArrivalTime, r.universityDepartureTime))}</td>
+      <td class="num">${fixed(r.requiredEnergyKWh)} kWh</td>
+      <td class="num">${esc(r.requiredSlots ?? "-")}</td>
+      <td class="num">${fixed(r.fixedChargingPowerKW)} kW</td>
+      <td>${esc(r.preferredPeriod || "ANY")}</td>
+      <td>${esc(r.priority || "NORMAL")}</td>
+      <td><span class="pill ${esc(status)}">${esc(r.status || "-")}</span></td>
+      <td>${esc(r.assignedBayId || a.bayId || "-")}</td>
+      <td>${esc(fmtWindow(r.assignedStartTime || a.startTime, r.assignedEndTime || a.endTime))}</td>
+      <td>${esc(r.rejectionReason || "")}</td>
+    </tr>`;
+  }).join("")}</table></div>`;
+}
+
+function renderOptimizationSchedule(run){
+  if (!run || !(run.assignments || []).length) {
+    g("optSchedule").innerHTML = '<div class="empty">No accepted appointments to display.</div>';
+    return;
+  }
+  const bays = [...new Set((run.assignments || []).map(a => a.bayId))].sort();
+  const slots = station ? Math.max(1, Math.ceil(((Number(station.closeHour) || 18.5) - (Number(station.openHour) || 6.5)) * 60 / (Number(station.slotMinutes) || 15))) : 48;
+  const rows = bays.map(bay => {
+    const bars = (run.assignments || []).filter(a => a.bayId === bay).map(a => {
+      const start = Math.max(0, Number(a.startSlot || 0));
+      const charge = Math.max(1, Number(a.slotCount || 1));
+      const turnover = Math.max(0, Number(a.turnoverSlots || 0));
+      const left = start / slots * 100;
+      const width = Math.min(100 - left, charge / slots * 100);
+      const turnoverLeft = (start + charge) / slots * 100;
+      const turnoverWidth = Math.min(100 - turnoverLeft, turnover / slots * 100);
+      const label = `${a.startTime || ""}-${a.endTime || ""} ${a.power || ""}kW`;
+      return `<span class="gantt-bar" style="left:${left}%;width:${width}%;" title="${esc(label)}">${esc(label)}</span>` +
+        (turnover ? `<span class="gantt-bar turnover" style="left:${turnoverLeft}%;width:${turnoverWidth}%;" title="Turnover until ${esc(a.turnoverEndTime || "")}">Move-out</span>` : "");
+    }).join("");
+    return `<div class="gantt-row"><div class="gantt-label">${esc(bay)}</div><div class="gantt-track">${bars}</div></div>`;
+  }).join("");
+  const scheduleTable = `<div class="tablewrap" style="margin-top:18px"><table class="bk"><tr>
+    <th>Charger</th><th>Start</th><th>End</th><th>Turnover end</th><th>Fixed power</th><th>Energy</th><th>Solar %</th><th>Estimated cost</th>
+  </tr>${(run.assignments || []).map(a => `<tr>
+    <td>${esc(a.bayId)}</td><td>${esc(a.startTime || "-")}</td><td>${esc(a.endTime || "-")}</td><td>${esc(a.turnoverEndTime || "-")}</td>
+    <td class="num">${fixed(a.power)} kW</td><td class="num">${fixed(a.billableEnergyKWh || a.requiredEnergyKWh)} kWh</td>
+    <td class="num">${fixed(a.expectedSolarPercent, 1)}%</td><td class="num">${money(a.estimatedCost)}</td>
+  </tr>`).join("")}</table></div>`;
+  const open = station ? station.openHour : "";
+  const close = station ? station.closeHour : "";
+  g("optSchedule").innerHTML = `<div class="schedule-grid">${rows}</div><div class="gantt-time"><span>${esc(open)}</span><span>${esc(close)}</span></div>${scheduleTable}`;
+}
+
+async function loadOptimization(){
+  const date = g("optDate").value || tomorrowISO();
+  const r = await authFetch("/api/admin/optimization/schedule?date=" + encodeURIComponent(date));
+  if(!r.ok){ const d=await readJson(r).catch(()=>({})); toast(d.error || "Could not load optimization schedule"); return; }
+  optimizationData = await readJson(r);
+  renderOptimizationSummary(optimizationData.run, optimizationData.requests || []);
+  renderOptimizationRequests(optimizationData.requests || [], optimizationData.run);
+  renderOptimizationSchedule(optimizationData.run);
+}
+
+async function runOptimization(){
+  const date = g("optDate").value || tomorrowISO();
+  const r = await authFetch("/api/admin/optimization/run", { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ date }) });
+  const d = await readJson(r).catch(()=>({}));
+  if(!r.ok){ toast(d.error || "Optimization failed"); return; }
+  toast(d.warning || "Optimization run complete");
+  await loadOptimization();
+}
+
+async function publishOptimization(){
+  const run = optimizationData.run;
+  const status = String(run && run.status || "").toUpperCase();
+  if (!run || status === "FAILED" || status === "PUBLISHED") return;
+  if (!confirm("Publish these optimized appointments? Assignments cannot be edited after publication without cancellation and rerun.")) return;
+  const r = await authFetch("/api/admin/optimization/" + run._id + "/publish", { method:"POST" });
+  const d = await readJson(r).catch(()=>({}));
+  if(!r.ok){ toast(d.error || "Could not publish appointments"); return; }
+  toast("Optimized appointments published");
+  await Promise.all([loadOptimization(), loadBookings(), loadSolarGrid()]);
+}
+
+async function exportOptimization(){
+  const run = optimizationData.run;
+  if (!run) return;
+  const r = await authFetch("/api/admin/optimization/" + run._id + "/export.csv");
+  if(!r.ok){ const d=await readJson(r).catch(()=>({})); toast(d.error || "Could not export CSV"); return; }
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "voltstation-optimization-" + (optimizationData.date || g("optDate").value || "schedule") + ".csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+g("loadOpt").onclick = loadOptimization;
+g("runOpt").onclick = runOptimization;
+g("publishOpt").onclick = publishOptimization;
+g("exportOpt").onclick = exportOptimization;
+g("optDate").onchange = loadOptimization;
+
 g("refreshFc").onclick = async () => {
-  const d = await (await authFetch("/api/forecast/refresh",{method:"POST"})).json();
-  toast("Forecast rebuilt for " + d.date + " (" + d.source + ")");
+  const r = await authFetch("/api/forecast/refresh",{method:"POST"});
+  const d = await readJson(r).catch(()=>({}));
+  if(!r.ok){ toast(d.error || "Could not rebuild forecast"); return; }
+  toast("Forecast rebuilt for " + d.date + " (" + d.source + ", " + d.loadSrc + ")");
   await loadSolarGrid();
 };
 g("logout").onclick = () => { localStorage.clear(); location.href = "login.html"; };
 
 async function loadSolarGrid(){
-  const d = await (await authFetch("/api/analysis")).json();
+  const d = await readJson(await authFetch("/api/analysis"));
   document.getElementById("svgstats").innerHTML = [
     ["Solar-served", d.totals.solarKWh+" kWh"],
     ["Grid-served", d.totals.gridKWh+" kWh"],
@@ -385,7 +730,102 @@ async function loadSolarGrid(){
   document.getElementById("svgchart").innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%"><path d="${sur}" fill="#FBEEC9" stroke="#E8A33D" stroke-width="1"/>${bars}${ticks}</svg>`;
 }
 
-(async()=>{ await loadStation(); await loadBookings(); await loadSolarGrid(); })().catch(e=>console.error(e));
+let comparisonData = null;
+const CMP_METRICS = [
+  ["acceptedCount","Accepted requests",0],
+  ["rejectedCount","Rejected / waitlisted",0],
+  ["totalEnergyKWh","Total EV energy (kWh)",2],
+  ["solarEnergyKWh","Solar energy (kWh)",2],
+  ["gridEnergyKWh","Grid energy (kWh)",2],
+  ["solarSelfConsumptionPct","Solar self-consumption (%)",1],
+  ["peakDemandKW","Peak demand (kW)",2],
+  ["eveningPeakEnergyKWh","Evening-peak energy 18:30-22:30 (kWh)",2],
+  ["totalUserCostLKR","Total user cost (LKR)",0],
+  ["avgUserCostPerKWh","Avg user cost (LKR/kWh)",2],
+  ["operatorRevenueLKR","Operator revenue (LKR)",0],
+  ["operatorEnergyCostLKR","Operator energy cost (LKR)",0],
+  ["infrastructureRecoveryLKR","Infrastructure recovery (LKR)",0],
+  ["operatorProfitLKR","Operator profit (LKR)",0]
+];
+const CMP_COLUMNS = [["HOME_NIGHT","Home night charging"],["DAY_FCFS","Uncontrolled daytime (FCFS)"],["DAY_OPTIMIZED","Optimized daytime"]];
+
+function fixedOrDash(v, d=2){ return (v===null||v===undefined||Number.isNaN(Number(v))) ? "-" : Number(v).toFixed(d); }
+
+function renderComparisonTable(scenarios){
+  const rows = CMP_METRICS.map(([key,label,dec]) => `<tr><td>${esc(label)}</td>${CMP_COLUMNS.map(([k])=>`<td class="num">${fixedOrDash(scenarios[k]?.[key], dec)}</td>`).join("")}</tr>`).join("");
+  g("cmpTable").innerHTML = `<div class="tablewrap"><table class="bk"><tr><th>Metric</th>${CMP_COLUMNS.map(([,label])=>`<th>${esc(label)}</th>`).join("")}</tr>${rows}</table></div>`;
+}
+
+function renderMarginTable(marginTable){
+  if (!marginTable || !marginTable.length) { g("cmpMargins").innerHTML = '<div class="empty">No margin data.</div>'; return; }
+  g("cmpMargins").innerHTML = `<div class="tablewrap"><table class="bk"><tr><th>Margin</th><th>Accepted</th><th>Avg user cost (LKR/kWh)</th><th>Operator profit (LKR)</th></tr>${
+    marginTable.map(row=>`<tr><td>${(row.margin*100).toFixed(0)}%</td><td class="num">${row.acceptedCount}</td><td class="num">${fixed(row.avgUserCostPerKWh)}</td><td class="num">${money(row.operatorProfitLKR)}</td></tr>`).join("")
+  }</table></div>`;
+}
+
+const NIGHT_START_MIN = 18*60;
+function renderComparisonChart(scenarios){
+  const W=980,H=220,pl=8,prr=8,pt=10,pb=24;
+  const series = [["HOME_NIGHT","#B6552F"],["DAY_FCFS","#8A8F89"],["DAY_OPTIMIZED","#0E4D52"]];
+  const allPoints = series.flatMap(([k])=> (scenarios[k]?.loadProfile)||[]);
+  const maxV = Math.max(1, ...allPoints.map(p=>p.kW))*1.15;
+  const x = t => pl + (t/24)*(W-pl-prr);
+  const y = v => pt + (1-v/maxV)*(H-pt-pb);
+  const peakX1 = x(0.5), peakX2 = x(4.5); // 18:30-22:30, relative to the 18:00 anchor
+  const shading = `<rect x="${peakX1}" y="${pt}" width="${peakX2-peakX1}" height="${H-pt-pb}" fill="#FBE6DC" opacity="0.6"/>`;
+  const paths = series.map(([k,color]) => {
+    const pts = (scenarios[k]?.loadProfile)||[];
+    if (!pts.length) return "";
+    const d = pts.map((p,i)=>`${i?"L":"M"}${x(p.t)} ${y(p.kW)}`).join(" ");
+    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.2"/>`;
+  }).join("");
+  const ticks = [0,3,6,9,12,15,18,21].map(t => {
+    const totalMin = (NIGHT_START_MIN + t*60) % (24*60);
+    const hh = String(Math.floor(totalMin/60)).padStart(2,"0"), mm = String(totalMin%60).padStart(2,"0");
+    return `<text x="${x(t)}" y="${H-7}" font-size="10" fill="#9AA29C" text-anchor="middle">${hh}:${mm}</text>`;
+  }).join("");
+  g("cmpChart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%">${shading}${paths}${ticks}</svg>`;
+}
+
+async function runComparisonAnalysis(){
+  const date = g("cmpDate").value || tomorrowISO();
+  const r = await authFetch("/api/admin/comparison/run", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ date }) });
+  const d = await readJson(r).catch(()=>({}));
+  if(!r.ok){ toast(d.error || "Comparison failed"); return; }
+  comparisonData = d;
+  renderComparisonTable(d.scenarios);
+  renderMarginTable(d.marginTable);
+  renderComparisonChart(d.scenarios);
+  g("exportCmp").disabled = false;
+  toast(`Comparison complete - ${d.requestCount} requests`);
+}
+
+async function exportComparison(){
+  const date = g("cmpDate").value || tomorrowISO();
+  const r = await authFetch("/api/admin/comparison/export.csv?date=" + encodeURIComponent(date));
+  if(!r.ok){ const d=await readJson(r).catch(()=>({})); toast(d.error || "Could not export CSV"); return; }
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "voltstation-comparison-" + date + ".csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+g("runCmp").onclick = runComparisonAnalysis;
+g("exportCmp").onclick = exportComparison;
+
+(async()=>{
+  g("optDate").value = tomorrowISO();
+  g("cmpDate").value = tomorrowISO();
+  await loadStation();
+  await loadBookings();
+  await loadSolarGrid();
+  await loadOptimization();
+})().catch(e=>console.error(e));
 </script>
 </body>
 </html>

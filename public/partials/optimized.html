@@ -1,0 +1,75 @@
+<main class="page optimized-page">
+  <div class="wrap">
+    <section class="page-title">
+      <span class="eyebrow">Day-ahead scheduling</span>
+      <h1>Auto Schedule AC charging</h1>
+      <p class="muted">Submit your university arrival window and energy need. VoltStation processes all requests together and assigns the AC charger plus a continuous appointment time.</p>
+    </section>
+
+    <div class="notice">
+      <strong>Fixed-power appointment scheduling only.</strong>
+      Your vehicle charges at the fixed AC power you enter. The optimizer does not control charging speed. Park normally at the university and move to the charging bay only when VoltStation notifies you.
+    </div>
+
+    <div class="optimized-layout">
+      <section>
+        <form class="card panel" id="optimized-request-form">
+          <div class="section-head">
+            <div>
+              <h2>Day-ahead request</h2>
+              <p class="muted small">Requests are collected before the cutoff and scheduled as a batch. You do not choose a charger or exact charging slot on this page.</p>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="field"><label for="optimized-date">Charging date</label><input id="optimized-date" type="date" required></div>
+            <div class="field"><label for="optimized-power">Vehicle fixed AC charging power</label><select id="optimized-power"><option value="3.3">3.3 kW</option><option value="6.6">6.6 kW</option><option value="7.4" selected>7.4 kW</option><option value="11">11 kW</option></select></div>
+            <div class="field"><label for="optimized-arrival">At university from</label><input id="optimized-arrival" type="time" value="08:00" required></div>
+            <div class="field"><label for="optimized-departure">Leaving university by</label><input id="optimized-departure" type="time" value="17:00" required></div>
+            <div class="field"><label for="optimized-battery">Battery capacity (kWh)</label><input id="optimized-battery" type="number" min="1" step="0.1" required></div>
+            <div class="field"><label for="optimized-preferred">Preferred period</label><select id="optimized-preferred"><option value="ANY">ANY</option><option value="MORNING">MORNING</option><option value="MIDDAY">MIDDAY</option><option value="AFTERNOON">AFTERNOON</option></select></div>
+            <div class="field"><label for="optimized-soc0">Initial SOC (%)</label><input id="optimized-soc0" type="number" min="0" max="99" value="30" required></div>
+            <div class="field"><label for="optimized-socT">Target SOC (%)</label><input id="optimized-socT" type="number" min="1" max="100" value="80" required></div>
+            <div class="field"><label for="optimized-priority">Priority</label><select id="optimized-priority"><option value="NORMAL">NORMAL</option><option value="PRIORITY">PRIORITY</option></select></div>
+            <div class="field"><label for="optimized-cutoff">Booking cutoff</label><input id="optimized-cutoff" disabled value="Loading"></div>
+          </div>
+
+          <div class="result-grid">
+            <div class="result-tile"><span>Required battery energy</span><strong id="optimized-energy">-</strong></div>
+            <div class="result-tile"><span>Estimated charging duration</span><strong id="optimized-duration">-</strong></div>
+          </div>
+
+          <div class="form-error" id="optimized-form-error"></div>
+          <button class="btn solar full" id="optimized-submit" type="submit">Submit auto schedule request</button>
+        </form>
+
+        <div class="card panel section">
+          <div class="section-head">
+            <div>
+              <h2>My auto schedule requests</h2>
+              <p class="muted small">Status updates appear here after the operator runs and publishes the batch schedule.</p>
+            </div>
+          </div>
+          <div class="list" id="optimized-requests"><span class="muted small">Loading requests...</span></div>
+        </div>
+      </section>
+
+      <aside>
+        <div class="card panel">
+          <h2>Charging day workflow</h2>
+          <ol class="steps">
+            <li>Arrive and park in a normal university parking bay.</li>
+            <li>Wait for VoltStation to publish your appointment.</li>
+            <li>Move to the assigned AC charging bay when notified.</li>
+            <li>Charge at your fixed AC power for the assigned continuous slot.</li>
+            <li>Move out by the turnover deadline so the next user can charge.</li>
+          </ol>
+        </div>
+        <div class="card panel section">
+          <h2>What the optimizer chooses</h2>
+          <p class="muted small" style="margin-top:8px;">It chooses only the AC charger, charging start time, charging end time, and turnover period. It does not choose a DC charger and it does not change charging speed.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+</main>

@@ -59,6 +59,13 @@ function setMode(m){
 g("tLogin").onclick = () => setMode("login");
 g("tReg").onclick = () => setMode("register");
 
+async function readJson(response, fallback = {}) {
+  const body = await response.text();
+  if (!body) return fallback;
+  try { return JSON.parse(body); }
+  catch (error) { throw new Error(response.ok ? "Server returned invalid JSON" : `Request failed with status ${response.status}`); }
+}
+
 async function submit(){
   const msg = g("msg"); msg.className = "msg"; msg.textContent = "…";
   const body = { email: g("email").value.trim(), password: g("password").value };
@@ -76,7 +83,7 @@ async function submit(){
   const url = mode==="login" ? "/api/auth/login" : "/api/auth/register";
   try{
     const r = await fetch(url, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
-    const d = await r.json();
+    const d = await readJson(r);
     if(!r.ok){ msg.className="msg err"; msg.textContent = d.error || "failed"; return; }
     localStorage.setItem("vs_token", d.token);
     localStorage.setItem("vs_role", d.user.role);

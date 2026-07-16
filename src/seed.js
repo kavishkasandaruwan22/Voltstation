@@ -6,7 +6,14 @@ const { buildForecast } = require("./forecast");
 const { hash } = require("./auth");
 const { computeLCOI } = require("./lcoi");
 
-function tomorrow() { return new Date(Date.now() + 86400000).toISOString().slice(0, 10); }
+const STATION_TZ = process.env.STATION_TZ || "Asia/Colombo";
+// en-CA formats as YYYY-MM-DD, which the rest of the app expects.
+function localDateString(d = new Date(), tz = STATION_TZ) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit"
+  }).format(d);
+}
+function tomorrow() { return localDateString(new Date(Date.now() + 86400000)); }
 
 (async () => {
   const connected = await connect();
@@ -21,13 +28,13 @@ function tomorrow() { return new Date(Date.now() + 86400000).toISOString().slice
     name: "Colombo Community Station",
     lat: 6.9271, lon: 79.8612,
     pvKW: 150, performanceRatio: 0.8, tilt: 25, azimuth: 0, loss: 14,
-    openHour: 6.5, closeHour: 18.5, slotMinutes: 30,
+    openHour: 6.5, closeHour: 18.5, slotMinutes: 15,
     bays: [
       { bayId: "AC1", type: "AC", power: 7.4 }, { bayId: "AC2", type: "AC", power: 7.4 },
       { bayId: "AC3", type: "AC", power: 7.4 }, { bayId: "AC4", type: "AC", power: 7.4 },
       { bayId: "DC1", type: "DC", power: 30 }
     ],
-    tariff: { importAC: 43, importDC: 43, export: 19.61, demandPerKwh: 0 },
+    tariff: { importAC: 43, importDC: 43, dayRate: 43, peakRate: 66, offPeakRate: 34, export: 19.61, demandPerKwh: 0 },
     margin: 0.20,
     eta: 0.97
   };
@@ -37,8 +44,8 @@ function tomorrow() { return new Date(Date.now() + 86400000).toISOString().slice
   // forecast
   const date = tomorrow();
   await Forecast.deleteMany({ stationId: station._id });
-  const { pv, load, source, loadSrc } = await buildForecast(station);
-  await Forecast.create({ stationId: station._id, date, pv, load, source });
+  const { pv, load, source, loadSrc, loadMeta } = await buildForecast(station, date);
+  await Forecast.create({ stationId: station._id, date, pv, load, source, loadSource: loadSrc, loadMeta });
   console.log("  solar source:", source, "| load source:", loadSrc);
 
   // fixed admin (station owner)

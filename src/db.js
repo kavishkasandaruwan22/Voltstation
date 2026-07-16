@@ -7,6 +7,19 @@ const mongoOptions = {
   socketTimeoutMS: 20000
 };
 
+function redactMongoUri(uri) {
+  try {
+    const parsed = new URL(uri);
+    if (parsed.username || parsed.password) {
+      parsed.username = "***";
+      parsed.password = "";
+    }
+    return parsed.toString().replace("***@", "***@");
+  } catch (error) {
+    return uri.replace(/\/\/[^/@\s]+@/, "//***@");
+  }
+}
+
 async function connect() {
   const primaryUri = (process.env.MONGODB_URI || "").trim();
   const fallbackUri = (process.env.MONGODB_LOCAL_URI || DEFAULT_LOCAL_URI).trim();
@@ -17,19 +30,19 @@ async function connect() {
   if (useLocalFallback && fallbackUri && !candidateUris.includes(fallbackUri)) candidateUris.push(fallbackUri);
 
   if (!candidateUris.length) {
-    console.warn("⚠️ No MongoDB URI configured. Set MONGODB_URI in .env or start a local MongoDB server.");
+    console.warn("No MongoDB URI configured. Set MONGODB_URI in .env or start a local MongoDB server.");
     return false;
   }
 
   for (const uri of candidateUris) {
-    console.log("👉 Connecting to MongoDB:", uri);
+    console.log("Connecting to MongoDB:", redactMongoUri(uri));
 
     try {
       await mongoose.connect(uri, mongoOptions);
       console.log("✓ MongoDB connected");
       return true;
     } catch (error) {
-      console.error("⚠️ MongoDB connection failed:", error.message);
+      console.error("MongoDB connection failed:", error.message);
     }
   }
 

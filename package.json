@@ -6,7 +6,12 @@
   "scripts": {
     "start": "node server.js",
     "seed": "node src/seed.js",
-    "refresh": "node src/refresh.js"
+    "refresh": "node src/refresh.js",
+    "optimizer:demo": "python optimizer/solve_schedule.py < optimizer/sample_input.json",
+    "check": "node --check server.js && node --check src/dayAheadOptimizer.js && python -m py_compile optimizer/solve_schedule.py",
+    "test:optimizer": "python -m unittest optimizer/test_optimizer.py",
+    "test:pricing": "node test/pricing.test.js",
+    "test:load-data": "node scripts/validate_load_data.js"
   },
   "engines": { "node": ">=18" },
   "dependencies": {

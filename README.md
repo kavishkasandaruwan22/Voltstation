@@ -154,9 +154,17 @@ voltstation-app/
   (needs internet). PVGIS returns a *typical-year* AC profile for the station's
   location and PV size — a realistic day-ahead baseline, not a live weather
   forecast. The call is made from the backend (browsers can't call PVGIS — CORS).
-- **Real building load:** replace `modelLoad(station)` in `src/refresh.js` with
-  `parseLoadCSV(fileText, station)` (in `src/pvgis.js`) to load a `time,load_kW`
-  CSV from the building meter.
+- **Real building load:** `src/forecast.js` picks the load file automatically from
+  the forecast date's day-of-week, evaluated in the station's timezone (`STATION_TZ`,
+  default `Asia/Colombo`):
+  - Monday-Friday → `data/building_load_weekday.csv` (real measured data, Wed 1 Apr)
+  - Saturday-Sunday → `data/building_load_weekend.csv` (real measured data, Sat 4 Apr)
+
+  Both files are real 15-minute university meter readings (96 rows each), which
+  matches the station's default 15-minute slot length exactly — no interpolation
+  is needed unless `slotMinutes` is changed to something else. If the selected file
+  is missing, the forecast throws (or falls back to the modelled load curve when
+  `ALLOW_DEMO_LOAD_FALLBACK=1`, logging a warning naming the missing file).
 
 ---
 

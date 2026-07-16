@@ -1,8 +1,28 @@
+const STATION_TZ = "Asia/Colombo";
+// en-CA formats as YYYY-MM-DD, matching what the backend expects.
+function localDateString(d = new Date(), tz = STATION_TZ) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit"
+  }).format(d);
+}
+function tomorrowDateString() {
+  return localDateString(new Date(Date.now() + 86400000));
+}
+// "YYYY-MM-DD" -> "Tue, 15 Jul 2026" (in the station's timezone), so a stale/wrong
+// date is immediately visible instead of a silent "tomorrow" label.
+function formatLongDate(dateString, tz = STATION_TZ) {
+  if (!dateString) return "";
+  const anchor = new Date(`${dateString}T12:00:00Z`); // noon UTC: safely mid-day for any real-world offset
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz, weekday: "short", day: "numeric", month: "short", year: "numeric"
+  }).format(anchor);
+}
+
 let notifications = [];
 let socket = null;
 let notificationsReady = false;
 let availability = null;
-let currentDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+let currentDate = tomorrowDateString();
 let state = {
   me: null,
   station: null,
@@ -42,6 +62,16 @@ function authFetch(url, options = {}) {
   const headers = new Headers(options.headers || {});
   if (token) headers.set("Authorization", `Bearer ${token}`);
   return fetch(url, { ...options, headers });
+}
+
+async function readJson(response, fallback = {}) {
+  const body = await response.text();
+  if (!body) return fallback;
+  try {
+    return JSON.parse(body);
+  } catch (error) {
+    throw new Error(response.ok ? "Server returned invalid JSON" : `Request failed with status ${response.status}`);
+  }
 }
 
 function text(value, fallback = "-") {
@@ -99,8 +129,11 @@ function renderHeader() {
     <div class="wrap topbar">
       <a class="brand" href="/" aria-label="VoltStation Book a Slot"><span class="brand-mark"></span><span>VoltStation</span></a>
       <nav class="nav" aria-label="Primary navigation">
-        <a href="/">Book a Slot</a>
+        <a href="/">Manual Booking</a>
+        <a href="/optimized">Auto Schedule</a>
         <a href="/pricing">Pricing</a>
+        <a href="/station">Station</a>
+        <a href="/about">About</a>
       </nav>
       <div class="header-actions">
         <div class="dropdown bellwrap">
@@ -191,7 +224,7 @@ function showFreedBanner(list) {
 async function loadNotifications() {
   try {
     const response = await authFetch("/api/notifications");
-    notifications = await response.json();
+    notifications = await readJson(response, []);
     renderNotifications();
   } catch (error) {}
 }
@@ -200,7 +233,8 @@ async function pollFreed() {
   try {
     const previous = availability;
     const response = await authFetch(`/api/availability?date=${encodeURIComponent(currentDate)}`);
-    const next = await response.json();
+    const next = await readJson(response, null);
+    if (!next) return;
     const opened = [];
     if (previous?.grid && next?.grid) {
       next.grid.forEach((row, bayIndex) => {
@@ -241,7 +275,7 @@ function startNotifications() {
 
 async function fetchJson(url) {
   const response = await authFetch(url);
-  const data = await response.json();
+  const data = await readJson(response);
   if (!response.ok) throw new Error(data.error || "Request failed");
   return data;
 }
@@ -564,7 +598,7 @@ async function confirmBooking() {
       socT: Number(document.getElementById("soc-target")?.value || 0)
     })
   });
-  const data = await response.json();
+  const data = await readJson(response);
   if (!response.ok) {
     showToast(data.error || "Booking failed");
     return;
@@ -577,6 +611,8 @@ async function confirmBooking() {
 
 function renderBookingPage() {
   document.getElementById("booking-welcome").textContent = `Welcome back, ${state.me?.name || getAuthState().userName}`;
+  const dateNote = document.getElementById("booking-date-note");
+  if (dateNote) dateNote.textContent = formatLongDate(availability?.date || currentDate);
   renderUpcoming();
   renderVehicle();
   renderRequirement();
@@ -624,7 +660,7 @@ function bindBookingEvents() {
 
 async function initBookingPage() {
   try {
-    currentDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    currentDate = tomorrowDateString();
     await loadCoreData(true);
     renderBookingPage();
     bindBookingEvents();
@@ -650,16 +686,24 @@ function drawSvgChart(targetId, { labels, datasets, yLabel = "", title = "" }) {
   const max = Math.max(1, maxOf(values) * 1.15);
   const x = (index) => left + (index / Math.max(1, labels.length - 1)) * (width - left - right);
   const y = (value) => top + (1 - Number(value || 0) / max) * (height - top - bottom);
+  // Straight-segment polyline - the physically correct shape for a value that is
+  // constant within a slot; "stepped" holds the previous value until the slot
+  // boundary then jumps, instead of interpolating a diagonal/curve between points.
   const line = (data) => data.map((value, index) => `${index ? "L" : "M"}${x(index)} ${y(value)}`).join(" ");
+  const steppedLine = (data) => {
+    let d = `M${x(0)} ${y(data[0])}`;
+    for (let i = 1; i < data.length; i++) d += ` L${x(i)} ${y(data[i - 1])} L${x(i)} ${y(data[i])}`;
+    return d;
+  };
   const areaDataset = datasets.find((dataset) => dataset.fill);
   const area = areaDataset ? `M ${x(0)} ${height - bottom} ${areaDataset.data.map((value, index) => `L ${x(index)} ${y(value)}`).join(" ")} L ${x(areaDataset.data.length - 1)} ${height - bottom} Z` : "";
   const grid = [0, 0.25, 0.5, 0.75, 1].map((tick) => {
     const yy = top + (1 - tick) * (height - top - bottom);
     return `<line x1="${left}" x2="${width - right}" y1="${yy}" y2="${yy}" stroke="#edf1ee"/><text x="8" y="${yy + 4}" font-size="11" fill="#68756f">${Math.round(max * tick)}</text>`;
   }).join("");
-  const labelStep = Math.max(1, Math.ceil(labels.length / 13));
-  const ticks = labels.map((label, index) => index % labelStep === 0 ? `<text x="${x(index)}" y="${height - 15}" font-size="11" fill="#68756f" text-anchor="middle">${String(label).split(":")[0]}</text>` : "").join("");
-  const paths = datasets.filter((dataset) => !dataset.fill).map((dataset) => `<path d="${line(dataset.data)}" fill="none" stroke="${dataset.color}" stroke-width="${dataset.width || 3}" stroke-linejoin="round" stroke-dasharray="${dataset.dash || ""}"/>`).join("");
+  // Ticks are an hourly LABEL setting only - the line itself still plots every slot.
+  const ticks = labels.map((label, index) => /:00$/.test(String(label)) ? `<text x="${x(index)}" y="${height - 15}" font-size="11" fill="#68756f" text-anchor="middle">${String(label).split(":")[0]}</text>` : "").join("");
+  const paths = datasets.filter((dataset) => !dataset.fill).map((dataset) => `<path d="${dataset.stepped ? steppedLine(dataset.data) : line(dataset.data)}" fill="none" stroke="${dataset.color}" stroke-width="${dataset.width || 3}" stroke-linejoin="round" stroke-dasharray="${dataset.dash || ""}"/>`).join("");
   target.innerHTML = `<svg viewBox="0 0 ${width} ${height}" width="100%" role="img" aria-label="${title}">
     ${grid}
     ${area ? `<path d="${area}" fill="#fbeec9" stroke="#f3d79b"/>` : ""}
@@ -684,7 +728,8 @@ function renderChart(chartKey, canvasId, fallbackId, config) {
     color: dataset.borderColor || dataset.backgroundColor,
     fill: !!dataset.fill,
     dash: dataset.borderDash ? dataset.borderDash.join(" ") : "",
-    width: dataset.borderWidth
+    width: dataset.borderWidth,
+    stepped: dataset.stepped === "before" || dataset.stepped === true
   }));
   drawSvgChart(fallbackId, {
     labels: config.data.labels,
@@ -697,6 +742,8 @@ function renderChart(chartKey, canvasId, fallbackId, config) {
 async function initPricingPage() {
   try {
     await loadCoreData(true);
+    const dateLine = document.getElementById("pricing-date-line");
+    if (dateLine) dateLine.textContent = `Prices for ${formatLongDate(state.prices?.date || currentDate)}`;
     const slots = state.prices?.slots || [];
     const acPrices = slots.map((slot) => Number(slot.priceAC || 0)).filter((value) => value > 0);
     const min = acPrices.length ? Math.min(...acPrices) : 0;
@@ -707,29 +754,35 @@ async function initPricingPage() {
       <article class="tariff-card card"><span>Day tariff</span><strong>${money(avg)}/kWh</strong><small>Typical daytime estimate</small></article>
       <article class="tariff-card card"><span>Off-peak tariff</span><strong>${money(min)}/kWh</strong><small>Lowest expected windows</small></article>`;
 
-    const hourly = slots.filter((slot) => /:00$/.test(slot.time));
-    const labels = (hourly.length ? hourly : slots).map((slot) => slot.time);
-    const source = hourly.length ? hourly : slots;
+    // Plot every 15-minute slot - hourly-only data hides 3 of every 4 real prices
+    // and lets the renderer invent a transition between the ones it keeps.
+    const labels = slots.map((slot) => slot.time);
+    const source = slots;
     const solar = source.map((slot) => Number(slot.pv || 0));
     const load = source.map((slot) => Number(slot.load || 0));
     const capacity = source.map((slot) => Math.max(0, Number(slot.surplus || 0)));
     const prices = source.map((slot) => Number(slot.priceAC || 0));
+    // Hourly TICK LABELS only (readability) - the line data above still uses every slot.
+    const hourlyTickCallback = (_value, index) => (/:00$/.test(String(labels[index])) ? labels[index] : "");
 
     renderChart("energyChart", "energy-chart", "energy-chart-fallback", {
       type: "line",
       data: {
         labels,
         datasets: [
-          { label: "Available Charging Capacity", data: capacity, borderColor: "#f3d79b", backgroundColor: "rgba(251, 238, 201, 0.72)", fill: true, tension: 0.35, borderWidth: 1.5 },
-          { label: "Solar Generation", data: solar, borderColor: "#e8a33d", backgroundColor: "#e8a33d", tension: 0.35, borderWidth: 3, pointRadius: 2 },
-          { label: "Building Load", data: load, borderColor: "#6f7470", backgroundColor: "#6f7470", tension: 0.35, borderWidth: 2.5, borderDash: [6, 5], pointRadius: 2 }
+          { label: "Available Charging Capacity", data: capacity, borderColor: "#f3d79b", backgroundColor: "rgba(251, 238, 201, 0.72)", fill: true, tension: 0, cubicInterpolationMode: "default", borderWidth: 1.5, pointRadius: 0 },
+          { label: "Solar Generation", data: solar, borderColor: "#e8a33d", backgroundColor: "#e8a33d", tension: 0, cubicInterpolationMode: "default", borderWidth: 3, pointRadius: 0 },
+          { label: "Building Load", data: load, borderColor: "#6f7470", backgroundColor: "#6f7470", tension: 0, cubicInterpolationMode: "default", borderWidth: 2.5, borderDash: [6, 5], pointRadius: 0 }
         ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { position: "bottom" }, title: { display: false, text: "Energy Information" } },
-        scales: { x: { title: { display: true, text: "Time (6 AM - 6 PM)" } }, y: { beginAtZero: true, title: { display: true, text: "Power (kW)" } } }
+        scales: {
+          x: { title: { display: true, text: "Time (6 AM - 6 PM)" }, ticks: { autoSkip: false, callback: hourlyTickCallback } },
+          y: { beginAtZero: true, title: { display: true, text: "Power (kW)" } }
+        }
       }
     });
 
@@ -742,13 +795,24 @@ async function initPricingPage() {
       type: "line",
       data: {
         labels,
-        datasets: [{ label: "Selling Price (Rs/kWh)", data: prices, borderColor: "#0e4d52", backgroundColor: "rgba(14, 77, 82, 0.08)", fill: false, tension: 0.35, borderWidth: 3, pointRadius: 3 }]
+        // Price is a STEP function - it is constant within a slot and jumps at slot
+        // boundaries when solar surplus appears/disappears. No smoothing, no spline
+        // overshoot above/below real prices.
+        datasets: [{
+          label: "Selling Price (Rs/kWh)", data: prices,
+          borderColor: "#0e4d52", backgroundColor: "rgba(14, 77, 82, 0.08)",
+          fill: false, tension: 0, cubicInterpolationMode: "default",
+          stepped: "before", borderWidth: 3, pointRadius: 0
+        }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false }, title: { display: true, text: "Tomorrow Charging Price Forecast" } },
-        scales: { x: { title: { display: true, text: "Time" } }, y: { beginAtZero: false, title: { display: true, text: "Selling Price (Rs/kWh)" } } }
+        scales: {
+          x: { title: { display: true, text: "Time" }, ticks: { autoSkip: false, callback: hourlyTickCallback } },
+          y: { beginAtZero: false, title: { display: true, text: "Selling Price (Rs/kWh)" } }
+        }
       }
     });
   } catch (error) {
@@ -780,7 +844,13 @@ async function initProfilePage() {
   });
 }
 
+function bookingStartHasPassed(booking) {
+  const start = timeAt(booking.startSlot);
+  return isPastSlot(start, booking.date);
+}
+
 function bookingCard(booking, upcoming) {
+  const showArrived = upcoming && booking.status === "booked" && !booking.attendanceConfirmed && bookingStartHasPassed(booking);
   return `
     <article class="booking-history-card">
       <div>
@@ -789,6 +859,7 @@ function bookingCard(booking, upcoming) {
       </div>
       <span class="badge ${booking.status === "cancelled" ? "booked" : "available"}">${booking.status}</span>
       <b>${money(booking.totalCost)}</b>
+      ${showArrived ? `<button class="btn secondary confirm-attendance" type="button" data-id="${booking._id}">I have arrived</button>` : ""}
       ${upcoming ? `<button class="btn secondary cancel-booking" type="button" data-id="${booking._id}">Cancel</button>` : ""}
     </article>`;
 }
@@ -806,7 +877,7 @@ async function initBookingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "cancelled" })
       });
-      const data = await response.json();
+      const data = await readJson(response);
       if (!response.ok) {
         showToast(data.error || "Cancellation failed");
         return;
@@ -815,6 +886,181 @@ async function initBookingsPage() {
       initBookingsPage();
     });
   });
+  document.querySelectorAll(".confirm-attendance").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const response = await authFetch(`/api/bookings/${button.dataset.id}/attendance`, { method: "POST" });
+      const data = await readJson(response);
+      if (!response.ok) {
+        showToast(data.error || "Could not confirm attendance");
+        return;
+      }
+      showToast("Attendance confirmed");
+      initBookingsPage();
+    });
+  });
+}
+
+function tomorrowISO() {
+  return tomorrowDateString();
+}
+
+function numericValue(id) {
+  return Number(document.getElementById(id)?.value || 0);
+}
+
+function validateOptimizedForm() {
+  const date = document.getElementById("optimized-date")?.value;
+  const arrival = document.getElementById("optimized-arrival")?.value;
+  const departure = document.getElementById("optimized-departure")?.value;
+  const battery = numericValue("optimized-battery");
+  const power = numericValue("optimized-power");
+  const soc0 = numericValue("optimized-soc0");
+  const socT = numericValue("optimized-socT");
+  if (!date) return "Select a charging date.";
+  if (!arrival || !departure || departure <= arrival) return "Departure time must be after arrival time.";
+  if (!(battery > 0)) return "Battery capacity must be positive.";
+  if (!(power > 0)) return "Fixed AC charging power must be positive.";
+  if (!(soc0 >= 0 && soc0 < socT && socT <= 100)) return "SOC must satisfy 0 <= initial SOC < target SOC <= 100.";
+  return "";
+}
+
+function renderOptimizedEstimate() {
+  const battery = numericValue("optimized-battery");
+  const soc0 = numericValue("optimized-soc0");
+  const socT = numericValue("optimized-socT");
+  const power = numericValue("optimized-power");
+  const energy = Math.max(0, battery * (socT - soc0) / 100);
+  const eta = Number(state.station?.infra?.etaAC || state.station?.eta || 0.97);
+  const hours = power > 0 ? energy / (power * eta) : 0;
+  const energyTarget = document.getElementById("optimized-energy");
+  const durationTarget = document.getElementById("optimized-duration");
+  const errorTarget = document.getElementById("optimized-form-error");
+  if (energyTarget) energyTarget.textContent = energy > 0 ? `${energy.toFixed(1)} kWh` : "-";
+  if (durationTarget) durationTarget.textContent = energy > 0 ? `${(Math.ceil(hours * 4) / 4).toFixed(2).replace(/\.00$/, "")} h` : "-";
+  if (errorTarget) errorTarget.textContent = validateOptimizedForm();
+}
+
+function optimizedStatusText(request) {
+  return {
+    PENDING: "Pending optimization",
+    ASSIGNED: "Assigned - awaiting publication",
+    PUBLISHED: "Published appointment",
+    WAITLISTED: "Waitlisted",
+    REJECTED: "Rejected",
+    CANCELLED: "Cancelled"
+  }[request.status] || request.status || "Pending";
+}
+
+function renderOptimizedRequests(requests) {
+  const target = document.getElementById("optimized-requests");
+  if (!target) return;
+  if (!requests.length) {
+    target.innerHTML = '<div class="empty left">No auto schedule requests yet.</div>';
+    return;
+  }
+  target.innerHTML = requests.map((request) => {
+    const hasAppointment = request.assignedStartTime || request.status === "PUBLISHED";
+    const statusClass = String(request.status || "PENDING").toLowerCase();
+    return `
+      <article class="auto-request">
+        <div class="auto-request-head">
+          <div>
+            <strong>${request.date}</strong>
+            <span>${text(request.vehicleBrand, "")} ${text(request.vehicleModel, "")} - ${Number(request.requiredEnergyKWh || 0).toFixed(1)} kWh - fixed ${request.fixedChargingPowerKW} kW AC</span>
+          </div>
+          <span class="badge ${statusClass === "cancelled" || statusClass === "rejected" ? "booked" : "available"}">${optimizedStatusText(request)}</span>
+        </div>
+        ${hasAppointment ? `<div class="appointment-box">
+          <strong>${request.assignedBayId || "Assigned AC charger"}: ${request.assignedStartTime || "-"} to ${request.assignedEndTime || "-"}</strong>
+          <span>Move-out deadline: ${request.turnoverEndTime || request.assignedEndTime || "-"}</span>
+          <span>Fixed charging power: ${request.fixedChargingPowerKW} kW</span>
+          <span>Expected energy: ${Number(request.requiredEnergyKWh || 0).toFixed(1)} kWh</span>
+          <span>Expected solar: ${Number(request.expectedSolarPercent || 0).toFixed(0)}%</span>
+          <span>Estimated cost: ${money(request.estimatedCost)}</span>
+        </div>` : ""}
+        ${request.rejectionReason ? `<div class="small auto-error">${request.rejectionReason}</div>` : ""}
+        ${["PENDING", "ASSIGNED", "WAITLISTED"].includes(request.status) ? `<button class="btn secondary cancel-optimized-request" type="button" data-id="${request._id}">Cancel request</button>` : ""}
+      </article>`;
+  }).join("");
+  target.querySelectorAll(".cancel-optimized-request").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!confirm("Cancel this auto schedule request?")) return;
+      const response = await authFetch(`/api/optimization/requests/${button.dataset.id}/cancel`, { method: "POST" });
+      const data = await readJson(response);
+      if (!response.ok) {
+        showToast(data.error || "Could not cancel request");
+        return;
+      }
+      showToast("Request cancelled");
+      await loadOptimizedRequests();
+    });
+  });
+}
+
+async function loadOptimizedRequests() {
+  const requests = await fetchJson("/api/optimization/requests");
+  renderOptimizedRequests(requests);
+}
+
+async function initOptimizedPage() {
+  const [stationData, meData] = await Promise.all([fetchJson("/api/station"), fetchJson("/api/auth/me")]);
+  state.station = stationData;
+  state.me = meData.user || {};
+  const dateInput = document.getElementById("optimized-date");
+  if (dateInput) {
+    dateInput.value = tomorrowISO();
+    dateInput.min = tomorrowISO();
+  }
+  const batteryInput = document.getElementById("optimized-battery");
+  if (batteryInput) batteryInput.value = state.me.batteryCapacity || localStorage.getItem("vs_batteryCapacity") || 40;
+  const cutoff = document.getElementById("optimized-cutoff");
+  if (cutoff) cutoff.value = `${state.station.bookingCutoffHour || 20}:00 day before charging`;
+  const powerSelect = document.getElementById("optimized-power");
+  const maxAC = Math.max(0, ...(state.station.bays || []).filter((bay) => bay.type === "AC").map((bay) => Number(bay.power || 0)));
+  if (powerSelect && maxAC && ![...powerSelect.options].some((option) => Number(option.value) === maxAC)) {
+    const option = document.createElement("option");
+    option.value = String(maxAC);
+    option.textContent = `${maxAC} kW`;
+    powerSelect.appendChild(option);
+  }
+  if (powerSelect && state.me.vehicleMaxACPowerKW) powerSelect.value = String(state.me.vehicleMaxACPowerKW);
+  ["optimized-date", "optimized-arrival", "optimized-departure", "optimized-battery", "optimized-soc0", "optimized-socT", "optimized-power"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("input", renderOptimizedEstimate);
+  });
+  document.getElementById("optimized-request-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const error = validateOptimizedForm();
+    const errorTarget = document.getElementById("optimized-form-error");
+    if (errorTarget) errorTarget.textContent = error;
+    if (error) return;
+    const submit = document.getElementById("optimized-submit");
+    if (submit) submit.disabled = true;
+    const response = await authFetch("/api/optimization/requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        date: document.getElementById("optimized-date").value,
+        universityArrivalTime: document.getElementById("optimized-arrival").value,
+        universityDepartureTime: document.getElementById("optimized-departure").value,
+        initialSOC: numericValue("optimized-soc0"),
+        targetSOC: numericValue("optimized-socT"),
+        batteryCapacityKWh: numericValue("optimized-battery"),
+        fixedChargingPowerKW: numericValue("optimized-power"),
+        preferredPeriod: document.getElementById("optimized-preferred").value,
+        priority: document.getElementById("optimized-priority").value
+      })
+    });
+    const data = await readJson(response);
+    if (submit) submit.disabled = false;
+    if (!response.ok) {
+      showToast(data.error || "Could not submit request");
+      return;
+    }
+    showToast("Request submitted - pending optimization");
+    await loadOptimizedRequests();
+  });
+  renderOptimizedEstimate();
+  await loadOptimizedRequests();
 }
 
 function renderPage(pageName) {
@@ -824,7 +1070,10 @@ function renderPage(pageName) {
     booking: "/partials/booking.html",
     pricing: "/partials/pricing.html",
     profile: "/partials/profile.html",
-    bookings: "/partials/my-bookings.html"
+    bookings: "/partials/my-bookings.html",
+    station: "/partials/station.html",
+    about: "/partials/about.html",
+    optimized: "/partials/optimized.html"
   };
   fetch(pages[pageName] || pages.booking)
     .then((res) => res.text())
@@ -836,7 +1085,8 @@ function renderPage(pageName) {
       if (pageName === "pricing") await initPricingPage();
       else if (pageName === "profile") await initProfilePage();
       else if (pageName === "bookings") await initBookingsPage();
-      else await initBookingPage();
+      else if (pageName === "optimized") await initOptimizedPage();
+      else if (pageName === "booking") await initBookingPage();
       if (window.location.hash) document.querySelector(window.location.hash)?.scrollIntoView({ block: "start" });
     })
     .catch(() => {
@@ -852,7 +1102,10 @@ function route() {
     "/booking": "booking",
     "/pricing": "pricing",
     "/profile": "profile",
-    "/bookings": "bookings"
+    "/bookings": "bookings",
+    "/station": "station",
+    "/about": "about",
+    "/optimized": "optimized"
   };
   renderHeader();
   renderPage(routeMap[path] || "booking");
@@ -886,3 +1139,4 @@ document.addEventListener("click", (event) => {
 
 window.addEventListener("DOMContentLoaded", route);
 window.addEventListener("popstate", route);
+
