@@ -23,7 +23,7 @@ const StationSchema = new Schema({
   optimizer: {
     enabled: { type: Boolean, default: true },
     acceptReward: { type: Number, default: 1000000 },
-    peakWeight: { type: Number, default: 100 },
+    solarWeight: { type: Number, default: 50 },
     costWeight: { type: Number, default: 1 },
     delayWeight: { type: Number, default: 0.25 },
     pythonBin: { type: String, default: "python" }

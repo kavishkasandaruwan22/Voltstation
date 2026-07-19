@@ -109,7 +109,7 @@ function buildOptimizerPayload({ station, forecast, requests, occupancies }) {
     })),
     weights: {
       acceptReward: asNumber(station.optimizer?.acceptReward, 1000000),
-      peakWeight: asNumber(station.optimizer?.peakWeight, 100),
+      solarWeight: asNumber(station.optimizer?.solarWeight, 50),
       costWeight: asNumber(station.optimizer?.costWeight, 1),
       delayWeight: asNumber(station.optimizer?.delayWeight, 0.25)
     },

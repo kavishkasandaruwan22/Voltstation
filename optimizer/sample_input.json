@@ -18,5 +18,5 @@
     {"id":"EV02","arrivalSlot":4,"departureSlot":16,"requiredSlots":5,"requiredEnergyKWh":17,"power":7.4,"preferredPeriod":"MIDDAY","priority":"NORMAL"},
     {"id":"EV03","arrivalSlot":2,"departureSlot":15,"requiredSlots":4,"requiredEnergyKWh":14,"power":7.4,"preferredPeriod":"MORNING","priority":"NORMAL"}
   ],
-  "weights": {"acceptReward":1000000,"peakWeight":100,"costWeight":1,"delayWeight":0.25}
+  "weights": {"acceptReward":1000000,"solarWeight":50,"costWeight":1,"delayWeight":0.25}
 }

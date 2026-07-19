@@ -146,6 +146,30 @@ class OptimizerTest(unittest.TestCase):
         self.assertEqual(len(result["rejected"]), 1)
         self.assertIn("Capacity unavailable", result["rejected"][0]["reason"])
 
+    def test_optimizer_prefers_the_solar_surplus_slot(self):
+        # Exactly two feasible start times for one car: slot 4 (no solar surplus)
+        # and slot 5 (full solar surplus). Prices are identical in both slots so
+        # cost cannot explain the choice - only the new solar objective can.
+        result, _ = self.solve({
+            "nSlots": 8,
+            "turnoverSlots": 0,
+            "eta": 1,
+            "load": [0] * 8,
+            "pv": [0, 0, 0, 0, 0, 10, 0, 0],
+            "existingEVPower": [0] * 8,
+            "slotPrices": [10] * 8,
+            "bays": [{"bayId": "AC1", "type": "AC", "power": 7.4, "blockedSlots": []}],
+            "requests": [
+                {"id": "SOLARTEST", "arrivalSlot": 4, "departureSlot": 6, "requiredSlots": 1,
+                 "requiredEnergyKWh": 7.4, "power": 7.4, "preferredPeriod": "ANY", "priority": "NORMAL"}
+            ],
+        })
+        self.assertTrue(result["success"])
+        self.assertEqual(len(result["assignments"]), 1)
+        assignment = result["assignments"][0]
+        self.assertEqual(assignment["startSlot"], 5)
+        self.assertGreater(assignment["solarKWh"], 0)
+
     def test_final_slot_cost_is_capped_to_required_energy(self):
         result, _ = self.solve({
             "nSlots": 4,

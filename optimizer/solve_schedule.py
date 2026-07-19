@@ -47,9 +47,19 @@ def solve(data: dict) -> dict:
 
     weights = data.get("weights", {})
     accept_reward = float(weights.get("acceptReward", 1_000_000))
-    peak_weight = float(weights.get("peakWeight", 100))
+    solar_weight = float(weights.get("solarWeight", 50))
     cost_weight = float(weights.get("costWeight", 1))
     delay_weight = float(weights.get("delayWeight", 0.25))
+
+    # Solar available to EVs depends on the station's allocation mode.
+    #   SHARED_SURPLUS  : EVs get the PV the building did not consume.
+    #   DEDICATED_EV_PV : the chargers have their own array; building load is irrelevant.
+    # Computed up front (not just for reporting) so each candidate's objective can be
+    # rewarded for how much of this surplus it would actually consume.
+    if solar_mode == "DEDICATED_EV_PV":
+        remaining_surplus = np.maximum(0.0, pv * dedicated_ratio - existing_power)
+    else:
+        remaining_surplus = np.maximum(0.0, pv - load - existing_power)
 
     bays = data.get("bays", [])
     requests = data.get("requests", [])
@@ -97,10 +107,12 @@ def solve(data: dict) -> dict:
                 # physical slot remains reserved in full.
                 remaining = required_energy
                 estimated_cost = 0.0
+                candidate_solar_kwh = 0.0
                 for t in charge_slots:
                     e = min(power * eta * slot_hours, remaining)
                     remaining = max(0.0, remaining - e)
                     estimated_cost += e * slot_prices[t]
+                    candidate_solar_kwh += min(power, remaining_surplus[t]) * slot_hours
 
                 if preferred is None:
                     delay = max(0, start - arrival)
@@ -108,8 +120,11 @@ def solve(data: dict) -> dict:
                     delay = abs((start + required_slots / 2) - preferred)
 
                 priority_multiplier = 1.15 if str(req.get("priority", "NORMAL")) == "PRIORITY" else 1.0
+                # Negative solar term because the solver MINIMISES: subtracting the
+                # reward makes using more surplus solar objectively "cheaper".
                 objective = (
                     -accept_reward * priority_multiplier
+                    - solar_weight * candidate_solar_kwh
                     + cost_weight * estimated_cost
                     + delay_weight * delay
                 )
@@ -124,6 +139,7 @@ def solve(data: dict) -> dict:
                     "chargeSlots": charge_slots,
                     "occupiedSlots": occupied_slots,
                     "estimatedCostProxy": estimated_cost,
+                    "solarKWh": candidate_solar_kwh,
                     "objective": objective,
                 }
                 candidates.append(cand)
@@ -154,20 +170,15 @@ def solve(data: dict) -> dict:
             "gridEnergyKWh": 0,
         }
 
-    # Last variable is the continuous peak variable M.
     n_x = len(candidates)
-    peak_index = n_x
-    n_vars = n_x + 1
+    n_vars = n_x
     c = np.zeros(n_vars)
     for idx, cand in enumerate(candidates):
         c[idx] = cand["objective"]
-    c[peak_index] = peak_weight
 
     lower = np.zeros(n_vars)
     upper = np.ones(n_vars)
-    upper[peak_index] = np.inf
     integrality = np.ones(n_vars)
-    integrality[peak_index] = 0
 
     rows: list[tuple[dict[int, float], float, float]] = []
 
@@ -182,17 +193,11 @@ def solve(data: dict) -> dict:
         if ids:
             rows.append(({i: 1.0 for i in ids}, -np.inf, 1.0))
 
-    # Site power limit. Existing manual bookings are already included.
+    # Site power limit (hard constraint - the transformer/connection genuinely cannot
+    # be exceeded). Existing manual bookings are already included.
     for t in range(n_slots):
         terms = {i: p for i, p in candidates_by_power_slot.get(t, [])}
         rhs = max(0.0, site_limit - load[t] - existing_power[t] + pv[t])
-        rows.append((terms, -np.inf, rhs))
-
-    # Peak variable: load + existing EV + optimized EV - PV <= M.
-    for t in range(n_slots):
-        terms = {i: p for i, p in candidates_by_power_slot.get(t, [])}
-        terms[peak_index] = -1.0
-        rhs = -(load[t] + existing_power[t] - pv[t])
         rows.append((terms, -np.inf, rhs))
 
     matrix = lil_matrix((len(rows), n_vars), dtype=float)
@@ -238,13 +243,7 @@ def solve(data: dict) -> dict:
 
     base_net = load + existing_power - pv
     final_net = base_net + new_power
-    # Solar available to EVs depends on the station's allocation mode.
-    #   SHARED_SURPLUS  : EVs get the PV the building did not consume.
-    #   DEDICATED_EV_PV : the chargers have their own array; building load is irrelevant.
-    if solar_mode == "DEDICATED_EV_PV":
-        remaining_surplus = np.maximum(0.0, pv * dedicated_ratio - existing_power)
-    else:
-        remaining_surplus = np.maximum(0.0, pv - load - existing_power)
+    # remaining_surplus was already computed above (shared with the objective).
     solar_power = np.minimum(new_power, remaining_surplus)
     solar_energy = float(np.sum(solar_power) * slot_hours)
     total_new_energy = 0.0
