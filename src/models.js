@@ -15,7 +15,7 @@ const StationSchema = new Schema({
   openHour: { type: Number, default: 6.5 },
   closeHour: { type: Number, default: 18.5 },
   slotMinutes: { type: Number, default: 15 },
-  siteLimitKW: { type: Number, default: 120 },
+  siteLimitKW: { type: Number, default: 250 },
   turnoverMinutes: { type: Number, default: 15 },
   bookingCutoffHour: { type: Number, default: 20 },
   reminderMinutes: { type: Number, default: 15 },

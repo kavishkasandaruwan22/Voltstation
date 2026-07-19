@@ -261,6 +261,19 @@
       </div>
     </div>
 
+    <form id="siteLimitForm" class="card">
+      <h2>Site Power Limit <button class="btnp" type="submit">Save</button></h2>
+      <div class="body">
+        <div class="fields" style="max-width:340px">
+          <div>
+            <label for="siteLimitKW">Site power limit (kW)</label>
+            <input id="siteLimitKW" type="number" step="0.1" min="0.1" required>
+            <div class="desc">Transformer / grid connection import limit. EV charging is only allowed within this limit after the building load is subtracted and solar added.</div>
+          </div>
+        </div>
+      </div>
+    </form>
+
     <div class="card">
       <h2>Station Configuration <button class="btnp" id="refreshFc" type="button">Rebuild tomorrow's forecast</button></h2>
       <div class="body"><div class="cfg" id="cfg"></div></div>
@@ -390,6 +403,7 @@ function fillTariffForm(){
   g("tilt").value = station.tilt;
   g("azimuth").value = station.azimuth || 0;
   g("loss").value = station.loss;
+  g("siteLimitKW").value = station.siteLimitKW ?? 250;
   fillInfraForm();
 }
 
@@ -413,6 +427,7 @@ function renderStationConfig(){
     ["Bay IDs", b.map(x=>x.bayId + " " + x.type + " " + x.power + "kW").join(", ")],
     ["Hours", station.openHour + " - " + station.closeHour],
     ["Slot length", station.slotMinutes + " min"],
+    ["Site power limit", (station.siteLimitKW ?? 250) + " kW"],
     ["Charging efficiency", (station.eta * 100).toFixed(0) + " %"],
     ["General Purpose rates", "Day Rs " + (t.dayRate ?? t.importAC) + " / Peak Rs " + (t.peakRate ?? 66) + " / Off-Peak Rs " + (t.offPeakRate ?? 34)],
     ["Live import AC / DC", "Rs " + t.importAC + " / " + t.importDC],
@@ -460,6 +475,19 @@ async function saveTariff(e){
 }
 g("tariffForm").addEventListener("submit", saveTariff);
 g("solarAllocationMode").addEventListener("change", updateSolarAllocationControls);
+
+async function saveSiteLimit(e){
+  e.preventDefault();
+  const siteLimitKW = val("siteLimitKW");
+  if (!(siteLimitKW > 0)) { toast("Site power limit must be a positive number"); return; }
+  const r = await authFetch("/api/station/" + station._id, { method:"PUT", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ siteLimitKW }) });
+  if(!r.ok){ const d=await readJson(r).catch(()=>({})); toast(d.error || "Could not save site power limit"); return; }
+  station = await readJson(r);
+  fillTariffForm();
+  renderStationConfig();
+  toast("Site power limit saved");
+}
+g("siteLimitForm").addEventListener("submit", saveSiteLimit);
 
 function infraValue(key) {
   return station.infra && station.infra[key] !== undefined ? station.infra[key] : INFRA_DEFAULTS[key];

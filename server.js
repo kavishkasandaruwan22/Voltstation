@@ -348,6 +348,11 @@ app.put("/api/station/:id", A.requireAdmin, async (req, res) => {
       station.tariff.importDC = station.tariff.dayRate;
     }
     if (Object.prototype.hasOwnProperty.call(req.body, "margin")) station.margin = req.body.margin;
+    if (Object.prototype.hasOwnProperty.call(req.body, "siteLimitKW")) {
+      const siteLimitKW = Number(req.body.siteLimitKW);
+      if (!(siteLimitKW > 0)) return res.status(400).json({ error: "siteLimitKW must be a positive number" });
+      station.siteLimitKW = siteLimitKW;
+    }
     if (req.body.domesticTariff) {
       station.domesticTariff = station.domesticTariff || {};
       ["homePeakRate", "homeDayRate", "homeOffPeakRate"].forEach(key => {
